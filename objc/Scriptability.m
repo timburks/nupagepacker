@@ -30,7 +30,41 @@
                                                             NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
  */
-#import "Scriptability.h"
+#import <Cocoa/Cocoa.h>
+#import "AppController.h"
+#import "MyDocument.h"
+#import "CatalogController.h"
+@class PackModel;
+
+@interface NSObject (MNscriptability)
+- (void) returnError:(int)n string:(NSString*)s;
+@end
+
+@interface AppController : NSObject {
+}
+
+@end
+
+@interface AppController (MNscriptability)
+@end
+
+@interface CatalogController (MNscriptability)
+- (PDFView*) pdfView;
+@end
+
+@interface MyDocument (MNscriptability)
+- (PackModel*) packModel;
+@end
+
+@interface MNDocPage: NSObject
+{
+	@public
+	int index;
+	MyDocument* document;
+}
+@end
+
+
 #import "AppController.h"
 #import "PreferenceController.h"
 #import "MyDocument.h"
