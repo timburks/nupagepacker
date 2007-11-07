@@ -32,8 +32,17 @@
  */
 #import "PackModel.h"
 #import "PageInfo.h"
-#import "PDFUtility.h"
 #import "PreferenceController.h"
+#import "TextDisplayView.h"
+
+NSData *pdfFromAttributedStringOfSize(NSAttributedString *attStr, NSSize size)
+{
+    TextDisplayView *v = [[TextDisplayView alloc] initWithPageSize:size
+                                                  attributedString:attStr];
+    NSData *d = [v dataWithPDFInsideRect:[v bounds]];
+    [v release];
+    return d;
+}
 
 NSString *PackModelChangedNotification = @"PackModelChangedNotification";
 
