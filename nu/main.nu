@@ -6,6 +6,7 @@
 (load "nu")      	;; essentials
 (load "cocoa")		;; wrapped frameworks
 (load "console")	;; interactive console
+(load "packer")		;; application code
 
 (set SHOW_CONSOLE_AT_STARTUP nil)
 
