@@ -312,7 +312,7 @@ static NSMutableDictionary *numberAttributes;
         // Get the image (will setCurrentPage: if necessary)
         id imageRep = [packModel preparedImageRepForPage:i];
         
-        if (imageRep) {
+        if (imageRep && (imageRep != [NSNull null])) {
             
             // Draw image
             [self drawImageRep:imageRep

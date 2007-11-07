@@ -35,7 +35,7 @@
 #define BLOCK_COUNT 8
 
 
-@interface PackModel : NSObject <NSCoding>{
+@interface NotPackModel : NSObject <NSCoding>{
     NSMutableArray *pageInfos;
     NSUndoManager *undoManager;
 }

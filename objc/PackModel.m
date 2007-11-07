@@ -46,7 +46,7 @@ NSData *pdfFromAttributedStringOfSize(NSAttributedString *attStr, NSSize size)
 
 NSString *PackModelChangedNotification = @"PackModelChangedNotification";
 
-@implementation PackModel
+@implementation NotPackModel
 
 - (id)init
 {

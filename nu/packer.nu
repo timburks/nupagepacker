@@ -74,8 +74,10 @@
      
      (- (id)init is
         (super init)
+        (NSLog "MyDocument init")
         (set @packModel ((PackModel alloc) init))
         (@packModel setUndoManager:(self undoManager))
+        (NSLog "ending")
         self)
      
      (- (id)windowNibName is "MyDocument")
@@ -86,7 +88,9 @@
      
      (- (void)windowControllerDidLoadNib:(id) aController is
         (super windowControllerDidLoadNib:aController)
-        (self updateUI))
+        (NSLog "updating UI")
+        (self updateUI)
+        (NSLog "update done"))
      
      (- (id)dataRepresentationOfType:(id)aType is
         (NSKeyedArchiver archivedDataWithRootObject:@packModel))
@@ -147,7 +151,9 @@
         ;; Is this a significant distance from the mouseDown?
         (unless (< (distanceSquaredBetweenPoints start current) 52.0)              
                 (set dragStart (self convertPoint:start fromView:NULL))
+                (NSLog "geting size of image")
                 (set imageSize ($dragImage size))
+                (NSLog "ok")
                 (set dragStart (list (- (dragStart first) (/ (imageSize first) 3.0))
                                      (- (dragStart second) (/ (imageSize second) 3.0))))
                 (set page (self currentPage))
@@ -167,8 +173,8 @@
      (- (void) mouseUp:(id) e is
         (set @mouseDownEvent nil)))
 
-(function pdfFromAttributedStringOfSize (attStr size)
-     (set v ((TextDisplayView alloc) initWithPageSize:size attributedString:attStr))
+(function pdfFromAttributedStringOfSize (attStr sz)
+     (set v ((TextDisplayView alloc) initWithPageSize:sz attributedString:attStr))
      (v dataWithPDFInsideRect:(v bounds)))
 
 (class PackModel is NSObject
@@ -178,6 +184,7 @@
      
      (- (id) init is
         (super init)
+        (NSLog "PackModel init")
         (set @pageInfos ((NSMutableArray alloc) init))
         (BLOCK_COUNT times:
              (do (i) 
@@ -185,26 +192,32 @@
         self)
      
      (- (id) preparedImageRepForPage:(int) pageNum is        
+        (NSLog "preparedImageRepForPage")
         (set obj (@pageInfos objectAtIndex:pageNum))
         (if obj
-            (then (obj preparedImageRep))
+            (then 
+                  (NSLog "getting prepared imagerep")(obj preparedImageRep))
             (else nil)))
      
      (- (void) replacePageInfoAt:(int) i withPageInfo:(id) pi is
+        (NSLog "replacePageInfoAt")
         (set oldInfo (@pageInfos objectAtIndex:i))
         (unless (eq pi oldInfo)
-                ((undoManager prepareWithInvocationTarget:self) replacePageInfoAt:i withPageInfo:oldInfo)
+                ;; invocation-based undo is broken
+                ;((@undoManager prepareWithInvocationTarget:self) replacePageInfoAt:i withPageInfo:oldInfo)
                 (@pageInfos replaceObjectAtIndex:i withObject:pi)
-                ((NSNotificationCenter defaultCenter) postNotificationName:"PackModelChangedNotification" object:self userInfo:nil)))
+                (NSLog "posting notification")
+                ((NSNotificationCenter defaultCenter) postNotificationName:"PackModelChangedNotification" object:self userInfo:NULL)))
      
      (- (void) setImageRep:(id) r pageOfRep:(int) repPage forPage:(int) viewPage is
+        (NSLog "setImageRep")
         (set pi ((PageInfo alloc) init))
         (pi setImageRep:r)
         (pi setPageOfRep:repPage)
-        (self replacePageInfoAt:viewPage
-              withPageInfo:pi))
+        (self replacePageInfoAt:viewPage withPageInfo:pi))
      
      (- (id)initWithCoder:(id) c is		
+        (NSLog "initWithCoder")
         (super init)
         (set @pageInfos (c decodeObjectForKey:"pageInfos"))
         self)
@@ -218,6 +231,7 @@
      (- (id) undoManager is @undoManager)
      
      (- (void) removeAllImageReps is
+        (NSLog "removeAllImageReps")
         (BLOCK_COUNT times:
              (do (i)
                  (self replacePageInfoAt:i withPageInfo:nil))))
@@ -226,87 +240,88 @@
         (self replacePageInfoAt:i withPageInfo:nil))
      
      (- (void) swapImageRepAt:(int) i withRepAt:(int) j is
-        (set pii (pageInfos objectAtIndex:i))
-        (set pij (pageInfos objectAtIndex:j))
+        (NSLog "swapImageRepAt")
+        (set pii (@pageInfos objectAtIndex:i))
+        (set pij (@pageInfos objectAtIndex:j))
         (self replacePageInfoAt:i  withPageInfo:pij)
         (self replacePageInfoAt:j  withPageInfo:pii))
      
      (- (void) copyImageRepAt:(int) i toRepAt:(int) j is
-        (set pii (pageInfos objectAtIndex:i))
+        (NSLog "copyImageRepAt")
+        (set pii (@pageInfos objectAtIndex:i))
         (set pij ((PageInfo alloc) init))
         (pij setImageRep:(pii imageRep))
         (pij setPageOfRep:(pii pageOfRep))
         (self replacePageInfoAt:j withPageInfo:pij))
      
      (- (BOOL)pageIsFilled:(int) i is
-        (@pageInfos objectAtIndex:i))  
+        (NSLog "pageIsFilled #{i}")
+        (if (@pageInfos objectAtIndex:i) (then 1) (else 0))
+        )  
      
      (- (id) textAttributes is
+        (NSLog "textAttributes")
         (NSDictionary dictionaryWithObject:((PreferenceController sharedPreferenceController) textFont)
              forKey:NSFontAttributeName))
      
      (- (int) putAttributedString:(id) attStr  startingOnPage:(int) i is
+        (NSLog "putAttributedString")
         (set pdf (pdfFromAttributedStringOfSize attStr '(200 300)))
-        (self putPDFData:pdf startingOnPage:i))  d 
+        (self putPDFData:pdf startingOnPage:i)) 
      
      (- (int) putPDF:(id) pdf startingOnPage:(int) i is
+        (NSLog "putPDF")
         (set pageCount (pdf pageCount))
         (for ((set j 0)
               (and (< j pageCount) (< (+ j i) BLOCK_COUNT))
               (set j (+ j 1)))
-             (self setImageRep:pdf pageOfRep:j forPage:j+i))
+             (self setImageRep:pdf pageOfRep:j forPage:(+ i j)))
         (+ i j))
-         
-     (- (int) putFile:(id) currentPath startingOnPage:(int) i is
-        (set imageRep (NSImageRep imageRepWithContentsOfFile:currentPath))
-        
-        (unless imageRep
-                (set str (NSString stringWithContentsOfFile:currentPath
-                              encoding:NSUTF8StringEncoding
-                              error:NULL))
-                (if (!str) 
-                    (return i))
-                
-                (set atts (self textAttributes))              
-                (set attStr ((NSAttributedString alloc) initWithString:str attributes:atts))
-                (return (self putAttributedString:attStr startingOnPage:i)))
-        
-        (if (imageRep isKindOfClass:NSPDFImageRep)
-            (then 
-                  (self putPDF:imageRep startingOnPage:i))
-            (else 
-                  (self setImageRep:imageRep
-                        pageOfRep:-1
-                        forPage:i)
-                  (+ 1 i))))
      
-     (- (int)putFiles:(id) filenames startingOnPage:(int) i is
-        
+     (- (int) putFile:(id) currentPath startingOnPage:(int) i is
+        (NSLog "putFile")
+        (set imageRep (NSImageRep imageRepWithContentsOfFile:currentPath))       
+        (if (not imageRep)
+            (then
+                 (set str (NSString stringWithContentsOfFile:currentPath
+                               encoding:NSUTF8StringEncoding
+                               error:NULL))
+                 (if str
+                     (then
+                          (set atts (self textAttributes))              
+                          (set attStr ((NSAttributedString alloc) initWithString:str attributes:atts))
+                          (self putAttributedString:attStr startingOnPage:i))
+                     (else i)))
+            (else
+                 (if (imageRep isKindOfClass:NSPDFImageRep)
+                     (then 
+                           (self putPDF:imageRep startingOnPage:i))
+                     (else 
+                           (self setImageRep:imageRep
+                                 pageOfRep:-1
+                                 forPage:i)
+                           (+ 1 i))))))
+     
+     (- (int) putFiles:(id) filenames startingOnPage:(int) i is
+        (NSLog "putFiles")
         (set currentStart i)
         (set fileCount (filenames count))
         (for ((set currentFileIndex  0)
               (< currentFileIndex fileCount)
               (set currentFileIndex (+ currentFileIndex 1)))
              (set currentStart (self putFile:(filenames objectAtIndex:currentFileIndex) startingOnPage:currentStart)))
-        
         currentStart)
      
-     (- (int)putPDFData:(id) d startingOnPage:(int) i is
-        
+     (- (int) putPDFData:(id) d startingOnPage:(int) i is
+        (NSLog "putPDFData")
         (set ir ((NSPDFImageRep alloc) initWithData:d))
-        (set pageCount (ir pageCount))
-        
+        (set pageCount (ir pageCount))        
         (for ((set j 0)
               (and (< j pageCount) (< (+ j i) BLOCK_COUNT))
-              (set j (+ j 1)))
-             
+              (set j (+ j 1)))             
              (self setImageRep:ir
                    pageOfRep:j
-                   forPage:j+i))
+                   forPage:(+ i j)))
         (+ i j)))
-
-
-
-
 
 (puts "ok")
