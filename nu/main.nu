@@ -16,8 +16,10 @@
           (if SHOW_CONSOLE_AT_STARTUP ($console toggleConsole:self))
           ((CatalogController sharedCatalogController) showWindow:nil)))
 
+(set NSApp (NSApplication sharedApplication))
+
 ;; this makes the application window take focus when we've started it from the terminal
-((NSApplication sharedApplication) activateIgnoringOtherApps:YES)
+(NSApp activateIgnoringOtherApps:YES)
 
 ;; run the main Cocoa event loop
 (NSApplicationMain 0 nil)

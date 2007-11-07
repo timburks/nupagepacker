@@ -98,6 +98,76 @@
         (if @packerView (self updateUI))
         YES))
 
+(global NSDragOperationCopy 1)
+(global NSPDFPboardType "Apple PDF pasteboard type")
+(global NSDragPboard "Apple CFPasteboard drag")
+
+(function PointInRect (point rect)
+     (and
+         (>= (point first) (rect first))
+         (>= (point second) (rect second))
+         (<= (point first) (+ (rect first) (rect third)))
+         (<= (point second) (+ (rect second) (rect fourth)))))
+
+(function distanceSquaredBetweenPoints (p1 p2)
+     (set deltax (- (p1 first) (p2 first)))
+     (set deltay (- (p1 second) (p2 second)))
+     (+ (* deltax deltax) (* deltay deltay)))
+
+(class DraggingSourcePDFView is PDFView 
+     (ivar (id) mouseDownEvent)
+     
+     (+ (void) initialize is
+        (NSLog "initialize is not getting called... or is it?")
+        (set $dragImage (NSImage imageNamed:"Generic")))
+     
+     (- (id)hitTest:(NSPoint) aPoint is
+        (if (PointInRect aPoint (self frame)) 
+            (then self)
+            (else nil)))
+     
+     (- (BOOL) shouldDelayWindowOrderingForEvent:(id) theEvent is YES)
+     
+     (- (BOOL) acceptsFirstMouse:(id) theEvent is YES)
+     
+     (- (int) draggingSourceOperationMaskForLocal:(BOOL) flag is NSDragOperationCopy)
+     
+     (- (id) menuForEvent:(id) e is NULL)
+     
+     (- (void) mouseDown:(id) e is
+        (NSApp preventWindowOrdering)
+        (set @mouseDownEvent e))
+     
+     (- (void) mouseDragged:(id) e is
+        (unless $dragImage (set $dragImage (NSImage imageNamed:"Generic")))
+     
+        (set start (@mouseDownEvent locationInWindow))
+        (set current (e locationInWindow))
+        
+        ;; Is this a significant distance from the mouseDown?
+        (unless (< (distanceSquaredBetweenPoints start current) 52.0)              
+                (set dragStart (self convertPoint:start fromView:NULL))
+                (set imageSize ($dragImage size))
+                (set dragStart (list (- (dragStart first) (/ (imageSize first) 3.0))
+                                     (- (dragStart second) (/ (imageSize second) 3.0))))
+                (set page (self currentPage))
+                (set d (page dataRepresentation))
+                (set dPboard (NSPasteboard pasteboardWithName:NSDragPboard))
+                (dPboard declareTypes:(NSArray arrayWithObject:NSPDFPboardType) owner:self)
+                (dPboard setData:d forType:NSPDFPboardType)
+                (self dragImage:$dragImage
+                      at:dragStart
+                      offset:'(0 0)
+                      event:@mouseDownEvent
+                      pasteboard:dPboard
+                      source:self
+                      slideBack:YES)
+                (set @mouseDownEvent nil)))
+     
+     (- (void) mouseUp:(id) e is
+        (set @mouseDownEvent nil)))
+
+
 (puts "ok")
 
 
