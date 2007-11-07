@@ -69,6 +69,35 @@
         (self changeToPage:(- @currentPageIndex 1))
         (@pageSlider setIntValue:@currentPageIndex)))
 
+
+(class MyDocument
+     
+     (- (id)init is
+        (super init)
+        (set @packModel ((PackModel alloc) init))
+        (@packModel setUndoManager:(self undoManager))
+        self)
+     
+     (- (id)windowNibName is "MyDocument")
+     
+     (- (void)updateUI is
+        (@packerView setPackModel:@packModel)
+        ((@packerView window) setNextResponder:(CatalogController sharedCatalogController)))
+     
+     (- (void)windowControllerDidLoadNib:(id) aController is
+        (super windowControllerDidLoadNib:aController)
+        (self updateUI))
+     
+     (- (id)dataRepresentationOfType:(id)aType is
+        (NSKeyedArchiver archivedDataWithRootObject:@packModel))
+     
+     (- (BOOL)loadDataRepresentation:(id)data ofType:(id)aType is
+        (@packModel release)
+        (set @packModel (NSKeyedUnarchiver unarchiveObjectWithData:data))
+        (@packModel setUndoManager:(self undoManager))
+        (if @packerView (self updateUI))
+        YES))
+
 (puts "ok")
 
 

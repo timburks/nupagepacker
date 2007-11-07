@@ -37,55 +37,6 @@
 
 @implementation MyDocument
 
-- (id)init
-{
-    [super init];
-    packModel = [[PackModel alloc] init];
-    [packModel setUndoManager:[self undoManager]];
-    
-    return self;
-}
-
-- (void)dealloc
-{
-    [packModel release];
-    [super dealloc];
-}
-
-- (NSString *)windowNibName
-{
-    // Override returning the nib file name of the document
-    // If you need to use a subclass of NSWindowController or if your document supports multiple NSWindowControllers, you should remove this method and override -makeWindowControllers instead.
-    return @"MyDocument";
-}
-- (void)updateUI
-{
-    [packerView setPackModel:packModel];
-    [[packerView window] setNextResponder:[CatalogController sharedCatalogController]];
-}
-- (void)windowControllerDidLoadNib:(NSWindowController *) aController
-{
-    [super windowControllerDidLoadNib:aController];
-    [self updateUI];
-}
-
-- (NSData *)dataRepresentationOfType:(NSString *)aType
-{
-    NSData *d = [NSKeyedArchiver archivedDataWithRootObject:packModel];
-    return d;
-}
-
-- (BOOL)loadDataRepresentation:(NSData *)data ofType:(NSString *)aType
-{
-    [packModel release];
-    packModel = [[NSKeyedUnarchiver unarchiveObjectWithData:data] retain];
-    [packModel setUndoManager:[self undoManager]];
-    if (packerView) {
-        [self updateUI];
-    }
-    return YES;
-}
-
 - (NSPrintOperation *)printOperationWithSettings:(NSDictionary *)printSettings error:(NSError **)outError
 {
     NSPrintInfo *pi = [self printInfo];
