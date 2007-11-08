@@ -84,8 +84,12 @@
      (- (id)windowNibName is "MyDocument")
      
      (- (void)updateUI is
+        (NSLog "setting pack model")
+        (NSLog "#{(@packerView class)}")
         (@packerView setPackModel:@packModel)
-        ((@packerView window) setNextResponder:(CatalogController sharedCatalogController)))
+        (NSLog "setting up window")
+        ((@packerView window) setNextResponder:(CatalogController sharedCatalogController))
+        (NSLog "updateUI finished"))
      
      (- (void)windowControllerDidLoadNib:(id) aController is
         (super windowControllerDidLoadNib:aController)
@@ -365,6 +369,43 @@
 (function isLeftSide (pageNum)
      (or (eq pageNum 0) (> pageNum 4)))
 
+(function minX (rect) 
+     (set x1 (rect first))
+     (set x2 (+ (rect first) (rect third)))
+     (if (< x1 x2) (then x1) (else x2)))
+
+(function maxX (rect) 
+     (set x1 (rect first))
+     (set x2 (+ (rect first) (rect third)))
+     (if (> x1 x2) (then x1) (else x2)))
+
+(function minY (rect) 
+     (set y1 (rect second))
+     (set y2 (+ (rect second) (rect fourth)))
+     (if (< y1 y2) (then y1) (else y2)))
+
+(function maxY (rect) 
+     (set y1 (rect second))
+     (set y2 (+ (rect second) (rect fourth)))
+     (if (> y1 y2) (then y1) (else y2)))
+
+(function HalfX (r) 
+     (+ (r first) (* 0.5 (r third))))
+
+(function QuarterY (r) 
+     (+ (r second) (* 0.25 (r fourth))))
+
+(function HalfY (r) 
+     (+ (r second) (* 0.5 (r fourth))))
+
+(function ThreeQuarterY (r) 
+     (+ (r second) (* 0.75 (r fourth))))
+
+
+(global BUTTON_MARGIN 4.0)
+
+(set NSRectClip (NuBridgedFunction functionWithName:"NSRectClip" signature:"v{_NSRect}"))
+
 (class PackerView
      
      (set numberAttributes nil) ;; thanks to Nu closures, this is a class variable.
@@ -373,18 +414,207 @@
         (NSLog "initializing Packerview")
         (set numberAttributes ((NSMutableDictionary alloc) init))
         (numberAttributes setObject:(NSFont fontWithName:"Helvetica" size:40.0) forKey:NSFontAttributeName)
-        (numberAttributes setObject:(NSColor blueColor) forKey:NSForegroundColorAttributeName))   
+        (numberAttributes setObject:(NSColor blueColor) forKey:NSForegroundColorAttributeName))      
+     
+     (- (id) noinitWithFrame:(NSRect) frameRect is
+        (NSLog "initWithFrame #{(frameRect stringValue)}")
+        (super initWithFrame:frameRect)       
+        (set @imageablePageRect (insetRect (self bounds) 15.0 15.0))
+        (self registerForDraggedTypes:(array NSPDFPboardType "NSFilenamesPboardType"))
+        (set @dropPage -1)
+        (set @dragStart -1)
+        ((NSNotificationCenter defaultCenter) addObserver:self
+         selector:"paperSizeChanged:"
+         name:"PaperSizeChangedNotification"
+         object:nil)
+        (self prepareBezierPaths)
+        (set b ((NSButton alloc) initWithFrame:'(0 0 20 20)))
+        (b setCell:((RoundCloseButtonCell alloc) init))
+        (self addSubview:b)
+        self)
+     
+     (- (void) correctWindowForChangeFromSize:(NSSize) oldSize toSize:(NSSize) newSize is
+        (set oldFrame ((self window) frame))
+        (set frame (list
+                        (oldFrame first)
+                        (oldFrame second)
+                        (newSize first)
+                        (newSize second)))
+        ((self window) setFrame:frame display:YES))
+     
+     (- (void) updateSize is
+        (set oldSize (list ((self frame) third) ((self frame) fourth)))
+        (set newSize ((PreferenceController sharedPreferenceController) paperSize))
+        (self setFrameSize:newSize)
+        (self correctWindowForChangeFromSize:oldSize toSize:newSize)
+        (set @imageablePageRect (insetRect (self bounds) 15.0 15.0))
+        (self prepareBezierPaths)
+        ((self superview) setNeedsDisplay:YES))
+     
+     (- (void) awakeFromNib is
+        (self updateSize))
+     
+     (- (void) setPackModel:(id) pm is
+        (if @packModel
+            ((NSNotificationCenter defaultCenter) removeObserver:self
+             name:"PackModelChangedNotification"
+             object:packModel))
+        (set @packModel pm)
+        ((NSNotificationCenter defaultCenter) addObserver:self
+         selector:"modelChanged:"
+         name:"PackModelChangedNotification"
+         object:@packModel)     
+        (self placeButtons)
+        (self setNeedsDisplay:YES))
+     
+     (- (id) packModel is @packModel)
+     
+     (- (void)changeImageableRectDisplay:(id) sender is	
+        (set @showsImageableRect (sender state))
+        (self setNeedsDisplay:YES))
+     
+     (- (void) modelChanged:(id) note is
+        (self placeButtons)
+        (self setNeedsDisplay:YES))
+     
+     (- (void) paperSizeChanged:(id) n is
+        (self updateSize)
+        (self placeButtons))
+     
+     (- (void) prepareBezierPaths is
+        (set bounds (self bounds))
+        (set left (minX bounds))
+        (set right (maxX bounds))
+        (set top (maxY bounds))
+        (set bottom (minY bounds))
+        (set lowerH (QuarterY bounds))
+        (set midH (HalfY bounds))
+        (set upperH (ThreeQuarterY bounds))
+        (set midV (HalfX bounds))
+        
+        
+        (set @foldLines (NSBezierPath bezierPath))
+        (set $foldLines @foldLines) ;; there is a memory problem.  This keeps @foldlines from being released.
+        
+        (@foldLines setLineWidth:1.0)
+        
+        (@foldLines moveToPoint:(list left lowerH))
+        (@foldLines lineToPoint:(list right lowerH))
+        
+        (@foldLines moveToPoint:(list left midH))
+        (@foldLines lineToPoint:(list right midH))
+        
+        (@foldLines moveToPoint:(list left upperH))
+        (@foldLines lineToPoint:(list right upperH))
+        
+        ;; Vertical fold lines
+        (@foldLines moveToPoint:(list midV top))
+        (@foldLines lineToPoint:(list midV upperH))
+        
+        (@foldLines moveToPoint:(list midV lowerH))
+        (@foldLines lineToPoint:(list midV bottom))
+        
+        ;float dashes[2] = {7.0, 3.0};
+        (set @cutLine (NSBezierPath bezierPath))
+        (set $cutLine @cutLine) ;; there is a memory problem.  This keeps @cutLine from being released.
+        ;[cutLine setLineDash:dashes ;; how are we going to do this?
+        ;               count:2
+        ;               phase:0];
+        (@cutLine moveToPoint:(list midV upperH))
+        (@cutLine lineToPoint:(list midV lowerH))
+        (@cutLine setLineWidth:1.0))     
+     
+     
+     (- (void)drawImageRep:(id)rep inRect:(NSRect)rect isLeft:(BOOL)isLeft is
+        (set imageSize (rep size))
+        (set isPortrait (> (imageSize second) (imageSize first)))
+        
+        ;; Figure out the rotation (as a multiple of 90 degrees)
+        (set rotation (if isLeft (then 1) (else -1)))
+        (unless isPortrait (set rotation (+ rotation 1)))
+        
+        ;; Figure out the scale
+        ;;float scaleVertical;
+        ;;float scaleHorizontal;
+        ;; Is it rotated +/- 90 degrees?
+        (if (% rotation 2) 
+            (then 
+                  (set scaleVertical (/ (rect third) (imageSize first)))
+                  (set scaleHorizontal (/ (rect fourth) (imageSize second))))
+            (else 
+                  (set scaleVertical (/ (rect third) (imageSize second)))
+                  (set scaleHorizontal (/ (rect fourth) (imageSize first)))))
+        
+        ;;float scale;     ;; How much the image will be scaled
+        ;;float widthGap;  ;; How much it will need to be nudged to center horizontally
+        ;;float heightGap; ;; How much it will need to be nudged to center vertically
+        (if (> scaleHorizontal scaleVertical) 
+            (then 
+                  (set scale scaleVertical)
+                  (set heightGap 0)
+                  (set widthGap (* 0.5 (rect third) (/ (- scaleHorizontal scaleVertical) scaleHorizontal)))) 
+            (else 
+                  (set scale scaleHorizontal)
+                  (set widthGap 0)
+                  (set heightGap (* 0.5 (rect fourth) (/ (- scaleVertical scaleHorizontal) scaleVertical)))))
+        
+        (case rotation
+              (-1 (set origin (list (+ (rect first) widthGap)
+                                    (- (+ (rect second) (rect fourth)) heightGap))))
+              (0 (set origin (list (+ (rect first) widthGap)
+                                   (+ (rect second) heightGap))))
+              (1 (set origin (list (- (+ (rect first) (rect third)) widthGap)
+                                   (+ (rect second) heightGap))))
+              (2 (set origin (list (- (+ (rect first) (rect third)) widthGap)
+                                   (- (+ (rect second) (rect fourth)) heightGap))))
+              (else 
+                    (NSException raise:@"Rotation" format:"Rotation = #{rotation}?")))
+        
+        ; Create the affine transform
+        (set transform ((NSAffineTransform alloc) init))
+        (transform translateXBy:(origin first) yBy:(origin second))
+        (transform rotateByDegrees:(* rotation 90.0))
+        (transform scaleBy:scale)
+        (NSGraphicsContext saveGraphicsState)
+        (NSRectClip rect)
+        (transform concat)
+        (rep draw)
+        (NSGraphicsContext restoreGraphicsState))
      
      (- acceptsFirstMouse:theEvent is YES)
+     
+     (- (void) placeButtons is
+        ;; copy the array before enumerating... 
+        ;; I don't understand why this is necessary;
+        ;; the each: method uses an enumerator.
+        ((NSArray arrayWithArray:(self subviews)) each:
+         (do (subview)
+             (subview removeFromSuperviewWithoutNeedingDisplay)))
+        (BLOCK_COUNT times:	
+             (do (i)
+                 (if (@packModel pageIsFilled:i)                      
+                     (set fullRect (self fullRectForPage:i))
+                     (set buttonRect (list
+                                          (- (maxX fullRect) (+ 30 BUTTON_MARGIN))
+                                          (+ (minY fullRect) BUTTON_MARGIN)
+                                          30 25))
+                     (set button ((NSButton alloc) initWithFrame:buttonRect))
+                     (button setCell:((RoundCloseButtonCell alloc) init))
+                     (button setTag:i)
+                     (button setTarget:self)
+                     (button setAction:"clearPage:")
+                     (self addSubview:button)))))
+     
+     (- (void)clearPage:(id)sender is
+        (@packModel removeImageRepAtPage:(sender tag)))
      
      (- (void) drawNumber:(int) x centeredInRect:(NSRect) r is
         (set str (x stringValue))
         (set attString ((NSAttributedString alloc) initWithString:str attributes:numberAttributes))
-        (set drawingRect (list
-                              (+ (r first) (* 0.5 (- (r third) ((attString size) first))))
-                              (+ (r second) (* 0.5 (- (r fourth) ((attString size) second))))
-                              ((attString size) first)
-                              ((attString size) second)))                                     
+        (set drawingRect (list (+ (r first) (* 0.5 (- (r third) ((attString size) first))))
+                               (+ (r second) (* 0.5 (- (r fourth) ((attString size) second))))
+                               ((attString size) first)
+                               ((attString size) second)))                                     
         (attString drawInRect:drawingRect))
      
      (- (void)drawRect:(NSRect)rect is
@@ -420,12 +650,15 @@
         
         ; Draw folding lines
         ((NSColor lightGrayColor) set)
+        (NSLog "drawing lines")
+        (NSLog "#{@foldLines}")
         (@foldLines stroke)
         
         ; Draw the cutting line
         ((NSColor blackColor) set)
+        (NSLog "#{@cutLine}")
         (@cutLine stroke)
-        
+        (NSLog "done")
         ; If drawing to screen, draw imageable Rect
         (if (isScreen)  
             (if @showsImageableRect 
@@ -440,5 +673,23 @@
                                         alpha:0.3))
                 (dropColor set)
                 (NSBezierPath fillRect:(self fullRectForPage:@dropPage))))))
+
+
+
+(class TextDisplayView is NSView
+     (ivar (id) attString (NSSize) pageSize)
+     
+     (- (id)initWithPageSize:(NSSize)size attributedString:(id)aString is
+        (set frame (list 0 0 (size first) (size second)))
+        (self initWithFrame:frame)
+        (set @pageSize size)
+        (set @attString aString)
+        self)
+     
+     (- (BOOL)isFlipped is YES)
+     
+     (- (void)drawRect:(NSRect)rect is
+        (set bounds (insetRect (self bounds) 3 3))
+        (@attString drawInRect:bounds)))
 
 (puts "ok")

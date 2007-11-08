@@ -57,57 +57,14 @@ BOOL isLeftSide(int pageNum) {
     return (pageNum == 0) || (pageNum > 4);
 }
 
-
-
-
 @interface PackerView (PrivatePackerViewAPI) 
 - (void)prepareBezierPaths;
 - (void)setDropPage:(int)i;
-
 @end
 
 @implementation PackerView
 
 #pragma mark Initialization and dealloc
-
-
-
-
-- (void)clearPage:(id)sender
-{
-    int tag = [sender tag];
-    [packModel removeImageRepAtPage:tag];
-}
-
-- (void)placeButtons
-{
-    NSArray *subviews = [self subviews];
-    NSEnumerator *e = [subviews objectEnumerator];
-    id obj;
-    while (obj = [e nextObject]) {
-        [obj removeFromSuperviewWithoutNeedingDisplay];
-    }
-    int i;
-    for (i = 0; i < BLOCK_COUNT; i++) {
-        if ([packModel pageIsFilled:i]) {
-            NSRect fullRect = [self fullRectForPage:i];
-            NSRect buttonRect;
-            buttonRect.size = NSMakeSize(30, 25);
-            buttonRect.origin.x = NSMaxX(fullRect) - 30 - BUTTON_MARGIN;
-            buttonRect.origin.y = NSMinY(fullRect) + BUTTON_MARGIN;
-            NSButton *button = [[NSButton alloc] initWithFrame:buttonRect];
-            NSButtonCell *cell = [[RoundCloseButtonCell alloc] init];
-            [button setCell:cell];
-            [cell release];
-
-            [button setTag:i];
-            [button setTarget:self];
-            [button setAction:@selector(clearPage:)];
-            [self addSubview:button];
-            [button release];
-        }
-    }
-}
 
 - (id)initWithFrame:(NSRect)frameRect
 {
@@ -135,31 +92,6 @@ BOOL isLeftSide(int pageNum) {
 	return self;
 }
 
-- (void)correctWindowForChangeFromSize:(NSSize)oldSize
-                                toSize:(NSSize)newSize
-{
-    NSRect frame = [[self window] frame];
-    frame.size.width += newSize.width - oldSize.width;
-    frame.size.height += newSize.height - oldSize.height;
-    [[self window] setFrame:frame display:YES];
-}
-
-- (void)updateSize
-{
-    NSSize oldSize = [self frame].size;
-    NSSize newSize = [[PreferenceController sharedPreferenceController] paperSize];
-    [self setFrameSize:newSize];
-    [self correctWindowForChangeFromSize:oldSize toSize:newSize];
-    imageablePageRect = NSInsetRect([self bounds], 15.0, 15.0);
-    [self prepareBezierPaths];
-    [[self superview] setNeedsDisplay:YES];    
-}
-
-- (void)awakeFromNib
-{
-    [self updateSize];
-}
-
 - (void)dealloc
 {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
@@ -169,102 +101,7 @@ BOOL isLeftSide(int pageNum) {
     [super dealloc];
 }
 
-#pragma mark Accessing data
-
-- (void)setPackModel:(PackModel *)pm
-{
-    // Stop observing the old model
-    if (packModel) {
-        [[NSNotificationCenter defaultCenter] removeObserver:self
-                                                        name:@"PackModelChangedNotification"
-                                                      object:packModel];
-    }
-
-    [pm retain];
-    [packModel release];
-    packModel = pm;
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(modelChanged:)
-                                                 name:@"PackModelChangedNotification"
-                                               object:packModel];
-    [self placeButtons];
-    [self setNeedsDisplay:YES];
-}
-- (PackModel *)packModel
-{
-    return packModel;
-}
-
-- (IBAction)changeImageableRectDisplay:(id)sender
-{
-    showsImageableRect = [sender state];
-    [self setNeedsDisplay:YES];
-}
-
-#pragma mark Dealing with notifications
-
-- (void)modelChanged:(NSNotification *)note
-{
-    [self placeButtons];
-    [self setNeedsDisplay:YES];
-}
-
-- (void)paperSizeChanged:(NSNotification *)n
-{
-
-    [self updateSize];
-    [self placeButtons];
-
-}
-
 #pragma mark Drawing
-
-- (void)prepareBezierPaths
-{
-    NSRect bounds = [self bounds];
-    float left = NSMinX(bounds);
-    float right = NSMaxX(bounds);
-    float top = NSMaxY(bounds);
-    float bottom = NSMinY(bounds);
-    float lowerH = QuarterY(bounds);
-    float midH = HalfY(bounds);
-    float upperH = ThreeQuarterY(bounds);
-    float midV = HalfX(bounds);
-
-    [foldLines release];
-    foldLines = [[NSBezierPath alloc] init];
-    
-    [foldLines setLineWidth:1.0];
-    
-    [foldLines moveToPoint:NSMakePoint(left, lowerH)];
-    [foldLines lineToPoint:NSMakePoint(right, lowerH)];
-    
-    [foldLines moveToPoint:NSMakePoint(left,  midH)];
-    [foldLines lineToPoint:NSMakePoint(right, midH)];
-    
-    [foldLines moveToPoint:NSMakePoint(left, upperH)];
-    [foldLines lineToPoint:NSMakePoint(right, upperH)];
-    
-    // Vertical fold lines
-    [foldLines moveToPoint:NSMakePoint(midV,  top)];
-    [foldLines lineToPoint:NSMakePoint(midV, upperH)];
-    
-    [foldLines moveToPoint:NSMakePoint(midV, lowerH)];
-    [foldLines lineToPoint:NSMakePoint(midV, bottom)];
-    
-    [cutLine release];
-    cutLine = [[NSBezierPath alloc] init];
-    float dashes[2] = {7.0, 3.0};
-    cutLine = [[NSBezierPath alloc] init];
-    [cutLine setLineDash:dashes
-                   count:2
-                   phase:0];
-    [cutLine moveToPoint:NSMakePoint(midV, upperH)];
-    [cutLine lineToPoint:NSMakePoint(midV, lowerH)];
-    [cutLine setLineWidth:1.0];
-    
-}
-
 
 - (void)drawImageRep:(NSImageRep *)rep
               inRect:(NSRect)rect

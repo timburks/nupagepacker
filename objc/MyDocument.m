@@ -40,10 +40,8 @@
 - (NSPrintOperation *)printOperationWithSettings:(NSDictionary *)printSettings error:(NSError **)outError
 {
     NSPrintInfo *pi = [self printInfo];
-    NSPrintOperation *po = [NSPrintOperation printOperationWithView:packerView
-                                                          printInfo:pi];
+    NSPrintOperation *po = [NSPrintOperation printOperationWithView:packerView printInfo:pi];
     return po;
-    
 }
 
 @end
