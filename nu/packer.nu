@@ -71,6 +71,7 @@
 
 
 (class MyDocument
+     ;; extends class defined in objc
      
      (- (id)init is
         (super init)
@@ -177,10 +178,12 @@
      (set v ((TextDisplayView alloc) initWithPageSize:sz attributedString:attStr))
      (v dataWithPDFInsideRect:(v bounds)))
 
+(set BLOCK_COUNT 8)
+
 (class PackModel is NSObject
      (ivar (id) pageInfos (id) undoManager)
      
-     (set BLOCK_COUNT 8)
+     
      
      (- (id) init is
         (super init)
@@ -323,5 +326,119 @@
                    pageOfRep:j
                    forPage:(+ i j)))
         (+ i j)))
+
+
+(class PageInfo is NSObject 
+     (ivar (id) imageRep (int) pageOfRep)
+     
+     (- (void) encodeWithCoder:(id) c is
+        (c encodeObject:@imageRep forKey:@"imageRep")
+        (c encodeInt:@pageOfRep forKey:@"pageOfRep"))
+     
+     (- (id) initWithCoder:(id) c is
+        (super init)
+        (set @imageRep (c decodeObjectForKey:@"imageRep"))
+        (set @pageOfRep (c decodeIntForKey:@"pageOfRep"))
+        self)
+     
+     (- (id) preparedImageRep is
+        (if (>= @pageOfRep 0) 
+            (@imageRep setCurrentPage:@pageOfRep))
+        @imageRep)
+     
+     (- (void) setImageRep:(id) r is
+        (set @imageRep r))
+     
+     (- (id) imageRep is @imageRep)   
+     
+     (- (void)setPageOfRep:(int)i is
+        (set @pageOfRep i))
+     
+     (- (int)pageOfRep is @pageOfRep)
+     
+     (- (id)description is
+        "<PageInfo: #{(@imageRep description)}, #{@pageOfRep}>"))
+
+(function insetRect (rect x y)
+     (list (+ (rect first) x) (+ (rect second) y) (- (rect third) x x) (- (rect fourth) y y)))
+
+(function isLeftSide (pageNum)
+     (or (eq pageNum 0) (> pageNum 4)))
+
+(class PackerView
+     
+     (set numberAttributes nil) ;; thanks to Nu closures, this is a class variable.
+     
+     (+ (void) initialize is
+        (NSLog "initializing Packerview")
+        (set numberAttributes ((NSMutableDictionary alloc) init))
+        (numberAttributes setObject:(NSFont fontWithName:"Helvetica" size:40.0) forKey:NSFontAttributeName)
+        (numberAttributes setObject:(NSColor blueColor) forKey:NSForegroundColorAttributeName))   
+     
+     (- acceptsFirstMouse:theEvent is YES)
+     
+     (- (void) drawNumber:(int) x centeredInRect:(NSRect) r is
+        (set str (x stringValue))
+        (set attString ((NSAttributedString alloc) initWithString:str attributes:numberAttributes))
+        (set drawingRect (list
+                              (+ (r first) (* 0.5 (- (r third) ((attString size) first))))
+                              (+ (r second) (* 0.5 (- (r fourth) ((attString size) second))))
+                              ((attString size) first)
+                              ((attString size) second)))                                     
+        (attString drawInRect:drawingRect))
+     
+     (- (void)drawRect:(NSRect)rect is
+        (set isScreen (NSGraphicsContext currentContextDrawingToScreen))
+        
+        ; Draw a nice white background on the screen
+        (if (isScreen) 
+            ((NSColor whiteColor) set) 
+            (NSBezierPath fillRect:rect))
+        
+        (BLOCK_COUNT times:
+             (do (i)
+                 (set imageDest (self imageableRectForPage:i))
+                 ; Does this need redrawing?
+                 (if t ; (NSIntersectsRect imageDest rect)
+                     ; Get the image (will setCurrentPage: if necessary)
+                     (set imageRep (@packModel preparedImageRepForPage:i))                   
+                     (if imageRep ; Draw image
+                         (self drawImageRep:imageRep
+                               inRect:imageDest
+                               isLeft:(isLeftSide i)))
+                     ; Number the rectangles
+                     (if isScreen                         
+                         (if (eq i @dragStart) 
+                             (set highlightRect (insetRect imageDest 20 20))
+                             (set c (NSColor colorWithCalibratedRed:1
+                                             green:1
+                                             blue:0.5
+                                             alpha:0.5))
+                             (c set)
+                             (NSBezierPath fillRect:highlightRect))                         
+                         (self drawNumber:(+ i 1) centeredInRect:imageDest)))))
+        
+        ; Draw folding lines
+        ((NSColor lightGrayColor) set)
+        (@foldLines stroke)
+        
+        ; Draw the cutting line
+        ((NSColor blackColor) set)
+        (@cutLine stroke)
+        
+        ; If drawing to screen, draw imageable Rect
+        (if (isScreen)  
+            (if @showsImageableRect 
+                ((NSColor blueColor) set)
+                (NSBezierPath setDefaultLineWidth:1.0)
+                (NSBezierPath strokeRect:@imageablePageRect))
+            
+            (if (>= @dropPage 0) 
+                (set dropColor (NSColor colorWithDeviceRed:0.8
+                                        green:0.5
+                                        blue:0.5
+                                        alpha:0.3))
+                (dropColor set)
+                (NSBezierPath fillRect:(self fullRectForPage:@dropPage))))))
 
 (puts "ok")

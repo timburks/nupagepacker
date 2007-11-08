@@ -34,7 +34,7 @@
 #import "PackModel.h"
 #import "PreferenceController.h"
 #import "RoundCloseButtonCell.h"
-
+#define BLOCK_COUNT 8
 #define BUTTON_MARGIN 4.0
 
 float HalfX(NSRect r) {
@@ -57,7 +57,7 @@ BOOL isLeftSide(int pageNum) {
     return (pageNum == 0) || (pageNum > 4);
 }
 
-static NSMutableDictionary *numberAttributes;
+
 
 
 @interface PackerView (PrivatePackerViewAPI) 
@@ -71,15 +71,7 @@ static NSMutableDictionary *numberAttributes;
 #pragma mark Initialization and dealloc
 
 
-+ (void)initialize
-{
-    numberAttributes = [[NSMutableDictionary alloc] init];
-    [numberAttributes setObject:[NSFont fontWithName:@"Helvetica"
-                                                size:40.0]
-                         forKey:NSFontAttributeName];
-    [numberAttributes setObject:[NSColor blueColor]
-                         forKey:NSForegroundColorAttributeName];
-}
+
 
 - (void)clearPage:(id)sender
 {
@@ -184,7 +176,7 @@ static NSMutableDictionary *numberAttributes;
     // Stop observing the old model
     if (packModel) {
         [[NSNotificationCenter defaultCenter] removeObserver:self
-                                                        name:PackModelChangedNotification
+                                                        name:@"PackModelChangedNotification"
                                                       object:packModel];
     }
 
@@ -193,7 +185,7 @@ static NSMutableDictionary *numberAttributes;
     packModel = pm;
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(modelChanged:)
-                                                 name:PackModelChangedNotification
+                                                 name:@"PackModelChangedNotification"
                                                object:packModel];
     [self placeButtons];
     [self setNeedsDisplay:YES];
@@ -226,19 +218,7 @@ static NSMutableDictionary *numberAttributes;
 }
 
 #pragma mark Drawing
-- (void)drawNumber:(int)x
-    centeredInRect:(NSRect)r
-{
-    NSString *str = [NSString stringWithFormat:@"%d", x];
-    NSAttributedString *attString = [[NSAttributedString alloc] initWithString:str
-                                                                    attributes:numberAttributes];
-    NSRect drawingRect;
-    drawingRect.size = [attString size];
-    drawingRect.origin.x = r.origin.x + (r.size.width - drawingRect.size.width)/2.0;
-    drawingRect.origin.y = r.origin.y + (r.size.height - drawingRect.size.height)/2.0;
-      [attString drawInRect:drawingRect];
-    [attString release];
-}
+
 - (void)prepareBezierPaths
 {
     NSRect bounds = [self bounds];
@@ -284,90 +264,7 @@ static NSMutableDictionary *numberAttributes;
     [cutLine setLineWidth:1.0];
     
 }
-- (BOOL)acceptsFirstMouse:(NSEvent *)theEvent
-{
-    return YES;
-}
 
-- (void)drawRect:(NSRect)rect
-{
-    BOOL isScreen = [NSGraphicsContext currentContextDrawingToScreen];
-
-    // Draw a nice white background on the screen
-    if (isScreen) {
-        [[NSColor whiteColor] set];
-        [NSBezierPath fillRect:rect];
-    }
-    int i;
-    for (i = 0; i < BLOCK_COUNT; i++) {
-        
-        NSRect imageDest = [self imageableRectForPage:i];
-        
-        // Does this need redrawing?
-        if (!NSIntersectsRect(imageDest, rect)) {
-            continue;
-        }
-        
-           
-        // Get the image (will setCurrentPage: if necessary)
-        id imageRep = [packModel preparedImageRepForPage:i];
-        
-        if (imageRep && (imageRep != [NSNull null])) {
-            
-            // Draw image
-            [self drawImageRep:imageRep
-                        inRect:imageDest
-                        isLeft:isLeftSide(i)];
-        }
-        
-            
-        // Number the rectangles
-        if (isScreen)  {
-            
-            if (i == dragStart) {
-                NSRect highlightRect = NSInsetRect(imageDest, 20, 20);
-                NSColor *c = [NSColor colorWithCalibratedRed:1
-                                                       green:1
-                                                        blue:0.5
-                                                       alpha:0.5];
-                [c set];
-                [NSBezierPath fillRect:highlightRect];
-            }
-            
-            
-            [self drawNumber:i+1
-              centeredInRect:imageDest];
-        }
-    }
-    
-    // Draw folding lines
-    [[NSColor lightGrayColor] set];
-    [foldLines stroke];
-    
-    // Draw the cutting line
-    [[NSColor blackColor] set];
-    [cutLine stroke];
-
-    // If drawing to screen, draw imageable Rect
-    if (isScreen)  {
-        if (showsImageableRect) {
-            [[NSColor blueColor] set];
-            [NSBezierPath setDefaultLineWidth:1.0];
-            [NSBezierPath strokeRect:imageablePageRect];
-        }
-
-        if (dropPage >= 0) {
-            NSColor *dropColor = [NSColor colorWithDeviceRed:0.8
-                                                       green:0.5
-                                                        blue:0.5
-                                                       alpha:0.3];
-            [dropColor set];
-            [NSBezierPath fillRect:[self fullRectForPage:dropPage]];
-        }
-        
-    }
- 
-}
 
 - (void)drawImageRep:(NSImageRep *)rep
               inRect:(NSRect)rect
@@ -625,7 +522,6 @@ static NSMutableDictionary *numberAttributes;
         [undo endUndoGrouping];
         [undo beginUndoGrouping];
     }
-
 
     if ([matchingType isEqual:NSPDFPboardType]) {
         NSData *d = [pasteboard dataForType:NSPDFPboardType];
