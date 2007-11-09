@@ -70,8 +70,8 @@
         (@pageSlider setIntValue:@currentPageIndex)))
 
 
-(class MyDocument
-     ;; extends class defined in objc
+(class MyDocument is NSDocument
+     (ivar (id) packModel (id) packerView)
      
      (- (id)init is
         (super init)
@@ -105,7 +105,10 @@
         (set @packModel (NSKeyedUnarchiver unarchiveObjectWithData:data))
         (@packModel setUndoManager:(self undoManager))
         (if @packerView (self updateUI))
-        YES))
+        YES)
+     
+     (- (id)printOperationWithSettings:(id)printSettings error:(id)outError is ;; last type should be "NSError **"
+        (NSPrintOperation printOperationWithView:packerView printInfo:(self printInfo))))
 
 (global NSDragOperationCopy 1)
 (global NSPDFPboardType "Apple PDF pasteboard type")
@@ -187,24 +190,21 @@
 (class PackModel is NSObject
      (ivar (id) pageInfos (id) undoManager)
      
-     
-     
      (- (id) init is
         (super init)
         (NSLog "PackModel init")
         (set @pageInfos ((NSMutableArray alloc) init))
-        (BLOCK_COUNT times:
-             (do (i) 
-                 (@pageInfos addObject:nil)))
+        (BLOCK_COUNT times: (do (i) (@pageInfos addObject:nil)))
         self)
      
-     (- (id) preparedImageRepForPage:(int) pageNum is        
-        (NSLog "preparedImageRepForPage")
+     (- (id) preparedImageRepForPage:(int) pageNum is   
+        (NSLog "#{pageNum} #{(@pageInfos description)}")
         (set obj (@pageInfos objectAtIndex:pageNum))
+        (NSLog "that's not it")
         (if obj
-            (then 
-                  (NSLog "getting prepared imagerep")(obj preparedImageRep))
-            (else nil)))
+            (then (obj preparedImageRep))
+            (else nil))
+        )
      
      (- (void) replacePageInfoAt:(int) i withPageInfo:(id) pi is
         (NSLog "replacePageInfoAt")
@@ -405,22 +405,35 @@
 (global BUTTON_MARGIN 4.0)
 
 (set NSRectClip (NuBridgedFunction functionWithName:"NSRectClip" signature:"v{_NSRect}"))
+(set NSIntersectionRect (NuBridgedFunction functionWithName:"NSIntersectionRect" signature:"{_NSRect}{_NSRect}{_NSRect}"))
+(set NSPointInRect (NuBridgedFunction functionWithName:"NSPointInRect" signature:"i{_NSPoint}{_NSRect}"))
+(set NSFilenamesPboardType "NSFilenamesPboardType")
+(set NSIntersectsRect (NuBridgedFunction functionWithName:"NSIntersectsRect" signature:"i{_NSRect}{_NSRect}"))
+(set NSInsetRect (NuBridgedFunction functionWithName:"NSInsetRect" signature:"{_NSRect}{_NSRect}ff"))
 
-(class PackerView
+(set $numberAttributes nil) 
+
+(class PackerView is NSView 
+     (ivar (id) packModel
+           (id) foldLines
+           (id) cutLine
+           (NSRect) imageablePageRect
+           (BOOL) showsImageableRect
+           (int) dropPage
+           (int) dragStart)
      
-     (set numberAttributes nil) ;; thanks to Nu closures, this is a class variable.
      
      (+ (void) initialize is
         (NSLog "initializing Packerview")
-        (set numberAttributes ((NSMutableDictionary alloc) init))
-        (numberAttributes setObject:(NSFont fontWithName:"Helvetica" size:40.0) forKey:NSFontAttributeName)
-        (numberAttributes setObject:(NSColor blueColor) forKey:NSForegroundColorAttributeName))      
+        (set $numberAttributes ((NSMutableDictionary alloc) init))
+        ($numberAttributes setObject:(NSFont fontWithName:"Helvetica" size:40.0) forKey:NSFontAttributeName)
+        ($numberAttributes setObject:(NSColor blueColor) forKey:NSForegroundColorAttributeName))      
      
-     (- (id) noinitWithFrame:(NSRect) frameRect is
+     (- (id) initWithFrame:(NSRect) frameRect is
         (NSLog "initWithFrame #{(frameRect stringValue)}")
         (super initWithFrame:frameRect)       
-        (set @imageablePageRect (insetRect (self bounds) 15.0 15.0))
-        (self registerForDraggedTypes:(array NSPDFPboardType "NSFilenamesPboardType"))
+        (set @imageablePageRect (NSInsetRect (self bounds) 15.0 15.0))
+        (self registerForDraggedTypes:(array NSPDFPboardType NSFilenamesPboardType))
         (set @dropPage -1)
         (set @dragStart -1)
         ((NSNotificationCenter defaultCenter) addObserver:self
@@ -431,7 +444,13 @@
         (set b ((NSButton alloc) initWithFrame:'(0 0 20 20)))
         (b setCell:((RoundCloseButtonCell alloc) init))
         (self addSubview:b)
+        (set $global self)
         self)
+     
+     (- (void)dealloc is
+        (NSLog "[PackerView dealloc]")
+        ((NSNotificationCenter defaultCenter) removeObserver:self)
+        (super dealloc))
      
      (- (void) correctWindowForChangeFromSize:(NSSize) oldSize toSize:(NSSize) newSize is
         (set oldFrame ((self window) frame))
@@ -447,7 +466,7 @@
         (set newSize ((PreferenceController sharedPreferenceController) paperSize))
         (self setFrameSize:newSize)
         (self correctWindowForChangeFromSize:oldSize toSize:newSize)
-        (set @imageablePageRect (insetRect (self bounds) 15.0 15.0))
+        (set @imageablePageRect (NSInsetRect (self bounds) 15.0 15.0))
         (self prepareBezierPaths)
         ((self superview) setNeedsDisplay:YES))
      
@@ -526,7 +545,7 @@
      
      
      (- (void)drawImageRep:(id)rep inRect:(NSRect)rect isLeft:(BOOL)isLeft is
-        (set imageSize (rep size))
+        (set imageSize (rep size))        
         (set isPortrait (> (imageSize second) (imageSize first)))
         
         ;; Figure out the rotation (as a multiple of 90 degrees)
@@ -534,20 +553,17 @@
         (unless isPortrait (set rotation (+ rotation 1)))
         
         ;; Figure out the scale
-        ;;float scaleVertical;
-        ;;float scaleHorizontal;
-        ;; Is it rotated +/- 90 degrees?
-        (if (% rotation 2) 
+        (if (% rotation 2) ;; Is it rotated +/- 90 degrees?
             (then 
-                  (set scaleVertical (/ (rect third) (imageSize first)))
-                  (set scaleHorizontal (/ (rect fourth) (imageSize second))))
-            (else 
                   (set scaleVertical (/ (rect third) (imageSize second)))
-                  (set scaleHorizontal (/ (rect fourth) (imageSize first)))))
+                  (set scaleHorizontal (/ (rect fourth) (imageSize first))))
+            (else 
+                  (set scaleVertical (/ (rect third) (imageSize first)))
+                  (set scaleHorizontal (/ (rect fourth) (imageSize second)))))
         
-        ;;float scale;     ;; How much the image will be scaled
-        ;;float widthGap;  ;; How much it will need to be nudged to center horizontally
-        ;;float heightGap; ;; How much it will need to be nudged to center vertically
+        ;; scale     How much the image will be scaled
+        ;; widthGap  How much it will need to be nudged to center horizontally
+        ;; heightGap How much it will need to be nudged to center vertically
         (if (> scaleHorizontal scaleVertical) 
             (then 
                   (set scale scaleVertical)
@@ -581,6 +597,147 @@
         (rep draw)
         (NSGraphicsContext restoreGraphicsState))
      
+     (- (NSRect) fullRectForPage:(int) pageNum is        
+        (set bounds (self bounds))
+        (if (isLeftSide pageNum) 
+            (then (set x (minX bounds)))
+            (else (set x (HalfX bounds))))        
+        (case pageNum
+              (0 (set y (ThreeQuarterY bounds)))
+              (1 (set y (ThreeQuarterY bounds)))
+              (7 (set y (HalfY bounds)))
+              (2 (set y (HalfY bounds)))
+              (6 (set y (QuarterY bounds)))
+              (3 (set y (QuarterY bounds)))
+              (else (set y (minY bounds))))        
+        (list x y (* 0.5 (bounds third)) (* 0.25 (bounds fourth))))
+     
+     (- (NSRect) imageableRectForPage:(int) pageNum is
+        (NSIntersectionRect (self fullRectForPage:pageNum) @imageablePageRect))
+     
+     (- (void) setImageablePageRect:(NSRect) r is
+        (set @imageablePageRect r)
+        (self setNeedsDisplay:YES))
+     
+     ;;;; Dragging    
+     (- (void) setDragStart:(int) i is
+        (if (!= @dragStart i) 
+            (if (!= @dragStart -1) 
+                (set oldRect (self fullRectForPage:@dragStart))
+                (self setNeedsDisplayInRect:oldRect))
+            (set @dragStart i)
+            (if (!= @dragStart -1) 
+                (set oldRect (self fullRectForPage:@dragStart))
+                (self setNeedsDisplayInRect:oldRect))))
+     
+     (- (void) mouseDown:(id) e is
+        (set i (self pageForPointInWindow:(e locationInWindow)))
+        (if (@packModel pageIsFilled:i) 
+            (self setDragStart:i)))
+     
+     (- (void) mouseDragged:(id) e is
+        (if (!= @dragStart -1) 
+            (set i (self pageForPointInWindow:(e locationInWindow)))
+            (if (!= i @dragStart) 
+                (self setDropPage:i))))
+     
+     (- (void) mouseUp:(id) e is
+        (if (and (!= @dragStart -1)
+                 (!= @dropPage -1)
+                 (!= @dragStart @dropPage))
+            (if (& (e modifierFlags) NSAlternateKeyMask) 
+                (then (@packModel copyImageRepAt:@dragStart toRepAt:@dropPage))
+                (else (@packModel swapImageRepAt:@dragStart withRepAt:@dropPage))))
+        (self setDragStart:-1)
+        (self setDropPage:-1))
+     
+     ;;;; Drag and Drop Destination
+     
+     (- (void) setDropPage:(int) i is
+        (if (!= i @dropPage) 
+            (if (!= @dropPage -1) 
+                (self setNeedsDisplayInRect: (self fullRectForPage:@dropPage)))
+            (set @dropPage i)
+            (if (!= @dropPage -1)
+                (self setNeedsDisplayInRect:(self fullRectForPage:@dropPage)))))
+     
+     (- (int) pageForPoint:(NSPoint) p is
+        (set bounds (self bounds))
+        (unless (NSPointInRect p  bounds) 
+                (then -1)
+                (else (set page -1)
+                      (BLOCK_COUNT times:
+                           (do (i)
+                               (if (NSPointInRect p (self fullRectForPage:i))
+                                   (set page i))))
+                      page)))
+     
+     (- (int) pageForPointInWindow:(NSPoint) p is
+        (set x (self convertPoint:p fromView:NULL))
+        (self pageForPoint:x))
+     
+     (- (int) draggingEntered:(id) sender is
+        (set p (sender draggingLocation))
+        (self setDropPage:(self pageForPointInWindow:p))
+        NSDragOperationCopy)		
+     
+     (- (int) draggingUpdated:(id) sender is
+        (self setDropPage:(self pageForPointInWindow:(sender draggingLocation)))
+        NSDragOperationCopy)
+     
+     (- (void) draggingExited:(id) sender is (self setDropPage:-1))
+     
+     (- (BOOL) prepareForDragOperation:(id) sender is YES)
+     
+     (- (BOOL) performDragOperation:(id) sender is
+        (set pasteboard (sender draggingPasteboard))
+        (set favoriteTypes (array NSPDFPboardType NSFilenamesPboardType))
+        (set matchingType (pasteboard availableTypeFromArray:favoriteTypes))
+        (if matchingType
+            (else NO)
+            (then (set undo (@packModel undoManager))        
+                  (set groupingLevel (undo groupingLevel))
+                  ;; This is an odd little hack.  Seems undo groups are not properly closed after drag 
+                  ;; from the finder.
+                  (if (> groupingLevel 0) 
+                      (undo endUndoGrouping)
+                      (undo beginUndoGrouping))
+                  (if (matchingType isEqual:NSPDFPboardType) 
+                      (@packModel putPDFData:(pasteboard dataForType:NSPDFPboardType) startingOnPage:@dropPage))
+                  (if (matchingType isEqual:NSFilenamesPboardType) 
+                      (@packModel putFiles:(pasteboard propertyListForType:NSFilenamesPboardType) startingOnPage:@dropPage))
+                  YES)))
+     
+     (- (void) concludeDragOperation:(id)sender is
+        (self setDropPage:-1))
+     
+     ;;;; Pagination
+     
+     (if 0 ;; this function cannot be defined in Nu
+         (- (BOOL)knowsPageRange:(NSRange *)rptr
+            ;; As a sort of odd side-effect,  I'm also informing the view
+            ;; of how much of the page the printer can actually draw.
+            ;; I waited until now so that I could use the printer that the
+            ;; user actually selected.
+            (set op (NSPrintOperation currentOperation))
+            (set pi (op printInfo))
+            (if pi (self setImageablePageRect:(pi imageablePageBounds)))
+            
+            ;; It is a one-page document
+            ;rptr->location = 1;
+            ;rptr->length = 1;
+            YES))
+     
+     
+     (- (NSRect) rectForPage:(int) i is (self bounds))
+     
+     ;;;; For Debugging Purposes
+     
+     (- (id) description is "<PackerView: #{(@packModel description)}>")
+     
+     
+     
+     
      (- acceptsFirstMouse:theEvent is YES)
      
      (- (void) placeButtons is
@@ -610,7 +767,7 @@
      
      (- (void) drawNumber:(int) x centeredInRect:(NSRect) r is
         (set str (x stringValue))
-        (set attString ((NSAttributedString alloc) initWithString:str attributes:numberAttributes))
+        (set attString ((NSAttributedString alloc) initWithString:str attributes:$numberAttributes))
         (set drawingRect (list (+ (r first) (* 0.5 (- (r third) ((attString size) first))))
                                (+ (r second) (* 0.5 (- (r fourth) ((attString size) second))))
                                ((attString size) first)
@@ -624,28 +781,37 @@
         (if (isScreen) 
             ((NSColor whiteColor) set) 
             (NSBezierPath fillRect:rect))
-        
+        (NSLog "drawing blocks")
         (BLOCK_COUNT times:
              (do (i)
                  (set imageDest (self imageableRectForPage:i))
+                 
+                 (NSLog "imageDest is #{imageDest}, rect is #{rect}")
                  ; Does this need redrawing?
-                 (if t ; (NSIntersectsRect imageDest rect)
+                 (if (NSIntersectsRect imageDest rect)
+                     (NSLog "intersects")
                      ; Get the image (will setCurrentPage: if necessary)
-                     (set imageRep (@packModel preparedImageRepForPage:i))                   
+                     (set imageRep (@packModel preparedImageRepForPage:i))   
+                     (NSLog "drawing imagerep #{imageRep}")
                      (if imageRep ; Draw image
                          (self drawImageRep:imageRep
                                inRect:imageDest
                                isLeft:(isLeftSide i)))
                      ; Number the rectangles
-                     (if isScreen                         
-                         (if (eq i @dragStart) 
-                             (set highlightRect (insetRect imageDest 20 20))
+                     (NSLog "isScreen #{isScreen}")
+                     (if isScreen             
+                         (NSLog "uh, #{@dragStart} #{i}")
+                         (if (eq i @dragStart)
+                             (NSLog "ok")
+                             (set highlightRect (NSInsetRect imageDest 20 20))
+                             (NSLog "highlightRect #{highlightRect}")
                              (set c (NSColor colorWithCalibratedRed:1
                                              green:1
                                              blue:0.5
                                              alpha:0.5))
                              (c set)
-                             (NSBezierPath fillRect:highlightRect))                         
+                             (NSBezierPath fillRect:highlightRect))    
+                         (NSLog "imageDest #{imageDest}")                     
                          (self drawNumber:(+ i 1) centeredInRect:imageDest)))))
         
         ; Draw folding lines
@@ -674,8 +840,6 @@
                 (dropColor set)
                 (NSBezierPath fillRect:(self fullRectForPage:@dropPage))))))
 
-
-
 (class TextDisplayView is NSView
      (ivar (id) attString (NSSize) pageSize)
      
@@ -689,7 +853,101 @@
      (- (BOOL)isFlipped is YES)
      
      (- (void)drawRect:(NSRect)rect is
-        (set bounds (insetRect (self bounds) 3 3))
+        (set bounds (NSInsetRect (self bounds) 3 3))
         (@attString drawInRect:bounds)))
+
+
+
+(global PaperSizeChangedNotification "PaperSizeChangedNotification")
+(global PaperSizeKey "PaperSize")
+(global FontFamilyKey "FontFamily")
+(global FontSizeKey "FontSize")
+
+(global LETTER_PAPER_ID 0)
+(global A4_PAPER_ID 1)
+
+(set $sharedPreferenceController nil)
+
+(class PreferenceController is NSWindowController
+     (ivar (id) paperPopUp (id) textFontField (id) textFont)
+     
+     (- (id)init is
+        (super initWithWindowNibName:"PreferenceController")
+        (set $sharedPreferenceController self)
+        (set defaults (NSUserDefaults standardUserDefaults))
+        (set fontFamily (defaults stringForKey:FontFamilyKey))
+        (set fontSize (defaults floatForKey:FontSizeKey))
+        (set @textFont (NSFont fontWithName:fontFamily size:fontSize))
+        self)
+     
+     (+ (void)initialize is
+        (NSLog "initalizing preferencescontroller")
+        (set factoryDefaults ((NSMutableDictionary alloc) init))
+        (factoryDefaults setObject:(NSNumber numberWithInt:0)
+             forKey:PaperSizeKey)
+        (factoryDefaults setObject:@"Helvetica"
+             forKey:FontFamilyKey)
+        (factoryDefaults setObject:(NSNumber numberWithFloat:8.0)
+             forKey:FontSizeKey)
+        
+        ((NSUserDefaults standardUserDefaults) registerDefaults:factoryDefaults))
+     
+     (+ (id)sharedPreferenceController is
+        
+        (unless $sharedPreferenceController
+                ((PreferenceController alloc) init))	   
+        $sharedPreferenceController)
+     
+     (- (int)paperSizeID is
+        ((NSUserDefaults standardUserDefaults) integerForKey:PaperSizeKey))
+     
+     (- (void)setPaperSizeID:(int)i is
+        ((NSUserDefaults standardUserDefaults) setInteger:i forKey:PaperSizeKey)
+        (set userInfo (NSMutableDictionary dictionary))
+        (userInfo setObject:(NSValue valueWithSize:(self paperSize))
+             forKey:"PaperSize")
+        ((NSNotificationCenter defaultCenter) postNotificationName:PaperSizeChangedNotification
+         object:self
+         userInfo:userInfo))
+     
+     (- (NSSize)paperSize is
+        (set i (self paperSizeID))
+        (if (eq i 0)
+            (then ;; letter
+                  '(612 792))
+            (else ;; assume it's A4
+                  '(595 842))))
+     
+     (- (void)windowDidLoad is
+        (set i (self paperSizeID))
+        (@paperPopUp selectItemWithTag:i)
+        (@textFontField setStringValue:(self fontDescription)))
+     
+     (- (void)paperChosen:(id)sender is
+        (set i (@paperPopUp selectedTag))
+        (self setPaperSizeID:i))
+     
+     (- (id) textFont is @textFont)
+     
+     (- (void) setTextFont:(id) f is
+        (set @textFont f)
+        (set ud (NSUserDefaults standardUserDefaults))
+        (ud setObject:(f familyName) forKey:FontFamilyKey)
+        (ud setFloat:(f pointSize) forKey:FontSizeKey)
+        (@textFontField setStringValue:(self fontDescription)))	
+     
+     (- (id) fontDescription is
+        (set f (self textFont))
+        "#{(f displayName)} - #{(f pointSize)}")
+     
+     (- (void)changeFont:(id)sender is
+        (set newFont (sender convertFont:@textFont))
+        (self setTextFont:newFont))
+     
+     (- (void)chooseFont:(id)sender is
+        (set fm (NSFontManager sharedFontManager))
+        (fm setSelectedFont:@textFont isMultiple:NO)
+        (set fp (NSFontPanel sharedFontPanel))
+        (fp makeKeyAndOrderFront:nil)))
 
 (puts "ok")

@@ -8,6 +8,9 @@
 (load "console")	;; interactive console
 (load "packer")		;; application code
 
+(PackerView initialize) ;; why isn't this called automatically?
+(PreferenceController initialize)
+
 (set SHOW_CONSOLE_AT_STARTUP nil)
 
 (class AppController is NSObject

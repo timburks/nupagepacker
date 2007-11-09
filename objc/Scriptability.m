@@ -34,6 +34,7 @@
 #import "AppController.h"
 #import "MyDocument.h"
 #import "CatalogController.h"
+/*
 @class PackModel;
 
 @interface NSObject (MNscriptability)
@@ -66,7 +67,7 @@
 
 
 #import "AppController.h"
-#import "PreferenceController.h"
+
 #import "MyDocument.h"
 #import "CatalogController.h"
 #import "PackModel.h"
@@ -215,6 +216,6 @@ static int sizeEnumeration[] = {
 	[self returnError: errOSACantAccess string: @"This property is write-only."];
 	return nil;
 }
-
-
 @end
+
+*/
