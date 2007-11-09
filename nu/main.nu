@@ -10,6 +10,7 @@
 
 (PackerView initialize) ;; why isn't this called automatically?
 (PreferenceController initialize)
+(DraggingSourcePDFView initialize)
 
 (set SHOW_CONSOLE_AT_STARTUP nil)
 

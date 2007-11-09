@@ -18,7 +18,6 @@
      
      (- windowDidLoad is
         (set path ((NSBundle mainBundle) pathForResource:"diyp3h_core_1up" ofType:@"pdf"))
-        (unless path (NSLog "No path for pdf"))
         (set url (NSURL fileURLWithPath:path))
         (set pdfDoc ((PDFDocument alloc) initWithURL:url))
         (set pageCount (pdfDoc pageCount))
@@ -75,33 +74,24 @@
      
      (- (id)init is
         (super init)
-        (NSLog "MyDocument init")
         (set @packModel ((PackModel alloc) init))
         (@packModel setUndoManager:(self undoManager))
-        (NSLog "ending")
         self)
      
      (- (id)windowNibName is "MyDocument")
      
      (- (void)updateUI is
-        (NSLog "setting pack model")
-        (NSLog "#{(@packerView class)}")
         (@packerView setPackModel:@packModel)
-        (NSLog "setting up window")
-        ((@packerView window) setNextResponder:(CatalogController sharedCatalogController))
-        (NSLog "updateUI finished"))
+        ((@packerView window) setNextResponder:(CatalogController sharedCatalogController)))
      
      (- (void)windowControllerDidLoadNib:(id) aController is
         (super windowControllerDidLoadNib:aController)
-        (NSLog "updating UI")
-        (self updateUI)
-        (NSLog "update done"))
+        (self updateUI))
      
      (- (id)dataRepresentationOfType:(id)aType is
         (NSKeyedArchiver archivedDataWithRootObject:@packModel))
      
      (- (BOOL)loadDataRepresentation:(id)data ofType:(id)aType is
-        (@packModel release)
         (set @packModel (NSKeyedUnarchiver unarchiveObjectWithData:data))
         (@packModel setUndoManager:(self undoManager))
         (if @packerView (self updateUI))
@@ -130,7 +120,7 @@
      (ivar (id) mouseDownEvent)
      
      (+ (void) initialize is
-        (NSLog "initialize is not getting called... or is it?")
+        (NSLog "(DraggingSourcePDFView +initialize)")
         (set $dragImage (NSImage imageNamed:"Generic")))
      
      (- (id)hitTest:(NSPoint) aPoint is
@@ -151,17 +141,13 @@
         (set @mouseDownEvent e))
      
      (- (void) mouseDragged:(id) e is
-        (unless $dragImage (set $dragImage (NSImage imageNamed:"Generic")))
-        
         (set start (@mouseDownEvent locationInWindow))
         (set current (e locationInWindow))
         
         ;; Is this a significant distance from the mouseDown?
         (unless (< (distanceSquaredBetweenPoints start current) 52.0)              
                 (set dragStart (self convertPoint:start fromView:NULL))
-                (NSLog "geting size of image")
                 (set imageSize ($dragImage size))
-                (NSLog "ok")
                 (set dragStart (list (- (dragStart first) (/ (imageSize first) 3.0))
                                      (- (dragStart second) (/ (imageSize second) 3.0))))
                 (set page (self currentPage))
@@ -192,39 +178,31 @@
      
      (- (id) init is
         (super init)
-        (NSLog "PackModel init")
         (set @pageInfos ((NSMutableArray alloc) init))
         (BLOCK_COUNT times: (do (i) (@pageInfos addObject:nil)))
         self)
      
      (- (id) preparedImageRepForPage:(int) pageNum is   
-        (NSLog "#{pageNum} #{(@pageInfos description)}")
         (set obj (@pageInfos objectAtIndex:pageNum))
-        (NSLog "that's not it")
         (if obj
             (then (obj preparedImageRep))
-            (else nil))
-        )
+            (else nil)))
      
      (- (void) replacePageInfoAt:(int) i withPageInfo:(id) pi is
-        (NSLog "replacePageInfoAt")
         (set oldInfo (@pageInfos objectAtIndex:i))
         (unless (eq pi oldInfo)
                 ;; invocation-based undo is broken
                 ;((@undoManager prepareWithInvocationTarget:self) replacePageInfoAt:i withPageInfo:oldInfo)
                 (@pageInfos replaceObjectAtIndex:i withObject:pi)
-                (NSLog "posting notification")
                 ((NSNotificationCenter defaultCenter) postNotificationName:"PackModelChangedNotification" object:self userInfo:NULL)))
      
      (- (void) setImageRep:(id) r pageOfRep:(int) repPage forPage:(int) viewPage is
-        (NSLog "setImageRep")
         (set pi ((PageInfo alloc) init))
         (pi setImageRep:r)
         (pi setPageOfRep:repPage)
         (self replacePageInfoAt:viewPage withPageInfo:pi))
      
      (- (id)initWithCoder:(id) c is		
-        (NSLog "initWithCoder")
         (super init)
         (set @pageInfos (c decodeObjectForKey:"pageInfos"))
         self)
@@ -238,7 +216,6 @@
      (- (id) undoManager is @undoManager)
      
      (- (void) removeAllImageReps is
-        (NSLog "removeAllImageReps")
         (BLOCK_COUNT times:
              (do (i)
                  (self replacePageInfoAt:i withPageInfo:nil))))
@@ -247,14 +224,12 @@
         (self replacePageInfoAt:i withPageInfo:nil))
      
      (- (void) swapImageRepAt:(int) i withRepAt:(int) j is
-        (NSLog "swapImageRepAt")
         (set pii (@pageInfos objectAtIndex:i))
         (set pij (@pageInfos objectAtIndex:j))
         (self replacePageInfoAt:i  withPageInfo:pij)
         (self replacePageInfoAt:j  withPageInfo:pii))
      
      (- (void) copyImageRepAt:(int) i toRepAt:(int) j is
-        (NSLog "copyImageRepAt")
         (set pii (@pageInfos objectAtIndex:i))
         (set pij ((PageInfo alloc) init))
         (pij setImageRep:(pii imageRep))
@@ -262,22 +237,18 @@
         (self replacePageInfoAt:j withPageInfo:pij))
      
      (- (BOOL)pageIsFilled:(int) i is
-        (NSLog "pageIsFilled #{i}")
         (if (@pageInfos objectAtIndex:i) (then 1) (else 0))
         )  
      
      (- (id) textAttributes is
-        (NSLog "textAttributes")
         (NSDictionary dictionaryWithObject:((PreferenceController sharedPreferenceController) textFont)
              forKey:NSFontAttributeName))
      
      (- (int) putAttributedString:(id) attStr  startingOnPage:(int) i is
-        (NSLog "putAttributedString")
         (set pdf (pdfFromAttributedStringOfSize attStr '(200 300)))
         (self putPDFData:pdf startingOnPage:i)) 
      
      (- (int) putPDF:(id) pdf startingOnPage:(int) i is
-        (NSLog "putPDF")
         (set pageCount (pdf pageCount))
         (for ((set j 0)
               (and (< j pageCount) (< (+ j i) BLOCK_COUNT))
@@ -286,7 +257,6 @@
         (+ i j))
      
      (- (int) putFile:(id) currentPath startingOnPage:(int) i is
-        (NSLog "putFile")
         (set imageRep (NSImageRep imageRepWithContentsOfFile:currentPath))       
         (if (not imageRep)
             (then
@@ -310,7 +280,6 @@
                            (+ 1 i))))))
      
      (- (int) putFiles:(id) filenames startingOnPage:(int) i is
-        (NSLog "putFiles")
         (set currentStart i)
         (set fileCount (filenames count))
         (for ((set currentFileIndex  0)
@@ -320,7 +289,6 @@
         currentStart)
      
      (- (int) putPDFData:(id) d startingOnPage:(int) i is
-        (NSLog "putPDFData")
         (set ir ((NSPDFImageRep alloc) initWithData:d))
         (set pageCount (ir pageCount))        
         (for ((set j 0)
@@ -401,7 +369,6 @@
 (function ThreeQuarterY (r) 
      (+ (r second) (* 0.75 (r fourth))))
 
-
 (global BUTTON_MARGIN 4.0)
 
 (set NSRectClip (NuBridgedFunction functionWithName:"NSRectClip" signature:"v{_NSRect}"))
@@ -422,15 +389,13 @@
            (int) dropPage
            (int) dragStart)
      
-     
      (+ (void) initialize is
-        (NSLog "initializing Packerview")
+        (NSLog "(Packerview +initialize)")
         (set $numberAttributes ((NSMutableDictionary alloc) init))
         ($numberAttributes setObject:(NSFont fontWithName:"Helvetica" size:40.0) forKey:NSFontAttributeName)
         ($numberAttributes setObject:(NSColor blueColor) forKey:NSForegroundColorAttributeName))      
      
      (- (id) initWithFrame:(NSRect) frameRect is
-        (NSLog "initWithFrame #{(frameRect stringValue)}")
         (super initWithFrame:frameRect)       
         (set @imageablePageRect (NSInsetRect (self bounds) 15.0 15.0))
         (self registerForDraggedTypes:(array NSPDFPboardType NSFilenamesPboardType))
@@ -444,10 +409,9 @@
         (set b ((NSButton alloc) initWithFrame:'(0 0 20 20)))
         (b setCell:((RoundCloseButtonCell alloc) init))
         (self addSubview:b)
-        (set $global self)
         self)
      
-     (- (void)dealloc is
+     (- (void)nodealloc is
         (NSLog "[PackerView dealloc]")
         ((NSNotificationCenter defaultCenter) removeObserver:self)
         (super dealloc))
@@ -513,7 +477,7 @@
         
         
         (set @foldLines (NSBezierPath bezierPath))
-        (set $foldLines @foldLines) ;; there is a memory problem.  This keeps @foldlines from being released.
+        ;(set $foldLines @foldLines) ;; there is a memory problem.  This keeps @foldlines from being released.
         
         (@foldLines setLineWidth:1.0)
         
@@ -781,50 +745,37 @@
         (if (isScreen) 
             ((NSColor whiteColor) set) 
             (NSBezierPath fillRect:rect))
-        (NSLog "drawing blocks")
         (BLOCK_COUNT times:
              (do (i)
                  (set imageDest (self imageableRectForPage:i))
-                 
-                 (NSLog "imageDest is #{imageDest}, rect is #{rect}")
                  ; Does this need redrawing?
                  (if (NSIntersectsRect imageDest rect)
-                     (NSLog "intersects")
                      ; Get the image (will setCurrentPage: if necessary)
                      (set imageRep (@packModel preparedImageRepForPage:i))   
-                     (NSLog "drawing imagerep #{imageRep}")
                      (if imageRep ; Draw image
                          (self drawImageRep:imageRep
                                inRect:imageDest
                                isLeft:(isLeftSide i)))
                      ; Number the rectangles
-                     (NSLog "isScreen #{isScreen}")
                      (if isScreen             
-                         (NSLog "uh, #{@dragStart} #{i}")
                          (if (eq i @dragStart)
-                             (NSLog "ok")
                              (set highlightRect (NSInsetRect imageDest 20 20))
-                             (NSLog "highlightRect #{highlightRect}")
                              (set c (NSColor colorWithCalibratedRed:1
                                              green:1
                                              blue:0.5
                                              alpha:0.5))
                              (c set)
-                             (NSBezierPath fillRect:highlightRect))    
-                         (NSLog "imageDest #{imageDest}")                     
+                             (NSBezierPath fillRect:highlightRect))                  
                          (self drawNumber:(+ i 1) centeredInRect:imageDest)))))
         
         ; Draw folding lines
         ((NSColor lightGrayColor) set)
-        (NSLog "drawing lines")
-        (NSLog "#{@foldLines}")
         (@foldLines stroke)
         
         ; Draw the cutting line
         ((NSColor blackColor) set)
-        (NSLog "#{@cutLine}")
         (@cutLine stroke)
-        (NSLog "done")
+
         ; If drawing to screen, draw imageable Rect
         (if (isScreen)  
             (if @showsImageableRect 
@@ -881,7 +832,7 @@
         self)
      
      (+ (void)initialize is
-        (NSLog "initalizing preferencescontroller")
+        (NSLog "(PreferencesController +initialize)")
         (set factoryDefaults ((NSMutableDictionary alloc) init))
         (factoryDefaults setObject:(NSNumber numberWithInt:0)
              forKey:PaperSizeKey)
