@@ -950,4 +950,26 @@
         (set fp (NSFontPanel sharedFontPanel))
         (fp makeKeyAndOrderFront:nil)))
 
+(global NSSquareLineCapStyle 2)
+(class RoundCloseButtonCell is NSButtonCell 
+     (- (void)drawWithFrame:(NSRect)cellFrame inView:(id)controlView is        
+        (if (NSGraphicsContext currentContextDrawingToScreen) 
+            (if (self isHighlighted) 
+                (then ((NSColor orangeColor) set))
+                (else ((NSColor blueColor) set)))
+            (NSBezierPath fillRect:cellFrame)
+            (NSBezierPath setDefaultLineWidth:3)
+            ((NSColor whiteColor) set)
+            (NSBezierPath strokeRect:cellFrame)
+            (set p ((NSBezierPath alloc) init))
+            (p setLineWidth:3.0)
+            (p setLineCapStyle:NSSquareLineCapStyle)
+            (set xRect  (NSInsetRect cellFrame 9 7))
+            (p moveToPoint:(list (xRect first) (xRect second)))
+            (p lineToPoint:(list (+ (xRect first) (xRect third)) (+ (xRect second) (xRect fourth))))
+            (p moveToPoint:(list (xRect first)  (+ (xRect second) (xRect fourth))))
+            (p lineToPoint:(list (+ (xRect first) (xRect third)) (xRect second)))
+            ((NSColor whiteColor) set)
+            (p stroke))))
+
 (puts "ok")
