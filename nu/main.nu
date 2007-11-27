@@ -8,7 +8,8 @@
 (load "console")	;; interactive console
 (load "packer")		;; application code
 
-(PackerView initialize) ;; why isn't this called automatically?
+;; unfortunately, these aren't called automatically
+(PackerView initialize) 
 (PreferenceController initialize)
 (DraggingSourcePDFView initialize)
 

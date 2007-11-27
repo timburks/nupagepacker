@@ -1,20 +1,36 @@
-(global kPDFDisplaySinglePage 0)
+;; @file packer.nu
+;; @discussion PagePacker in Nu.
+;;
+;; @copyright Copyright (c) 2007 Tim Burks, Neon Design Technology, Inc.
 
-(class CatalogController is NSWindowController 
+(global kPDFDisplaySinglePage 0)
+(global NSDragOperationCopy 1)
+(global NSPDFPboardType "Apple PDF pasteboard type")
+(global NSDragPboard "Apple CFPasteboard drag")
+(global NSRectClip (NuBridgedFunction functionWithName:"NSRectClip" signature:"v{_NSRect}"))
+(global NSIntersectionRect (NuBridgedFunction functionWithName:"NSIntersectionRect" signature:"{_NSRect}{_NSRect}{_NSRect}"))
+(global NSPointInRect (NuBridgedFunction functionWithName:"NSPointInRect" signature:"i{_NSPoint}{_NSRect}"))
+(global NSFilenamesPboardType "NSFilenamesPboardType")
+(global NSIntersectsRect (NuBridgedFunction functionWithName:"NSIntersectsRect" signature:"i{_NSRect}{_NSRect}"))
+(global NSInsetRect (NuBridgedFunction functionWithName:"NSInsetRect" signature:"{_NSRect}{_NSRect}ff"))
+(global NSSquareLineCapStyle 2)
+
+(class CatalogController is NSWindowController
      (ivar (id) pdfView
            (id) pageSlider
            (id) pageField
            (int) currentPageIndex)
      
+     (set sharedCatalogController nil) ;; Nu closures make this a class variable
+     
      (- init is
         (super initWithWindowNibName:"CatalogController")
-        (unless $sharedCatalogController
-                (set $sharedCatalogController self))
+        (unless sharedCatalogController
+                (set sharedCatalogController self))
         (set @currentPageIndex 0)
         self)
      
-     (set $sharedCatalogController nil)     
-     (+ sharedCatalogController is $sharedCatalogController)
+     (+ sharedCatalogController is sharedCatalogController)
      
      (- windowDidLoad is
         (set path ((NSBundle mainBundle) pathForResource:"diyp3h_core_1up" ofType:@"pdf"))
@@ -28,16 +44,14 @@
         (@pdfView setBounds:'(65 90 260 380))
         (@pdfView setDocument:pdfDoc)
         (@pdfView setDisplayMode:kPDFDisplaySinglePage)
-        (set w (@pdfView window))
-(NSLog "window #{w}, self #{self}")
+        (set w (self window))
         (w setBecomesKeyOnlyIfNeeded:YES)
-        (w setNextResponder:self)
-)
+        (w setNextResponder:self))
      
      (- (void)changeToPage:(int)i is
         (unless (eq @currentPageIndex i) 
                 (set doc (@pdfView document))
-                (unless (>= i (doc pageCount)) 
+                (unless (or (< i 0) (>= i (doc pageCount)))
                         (set @currentPageIndex i)
                         (@pdfView goToPage:(doc pageAtIndex:@currentPageIndex))
                         (@pageField setIntValue:(+ @currentPageIndex 1)))))
@@ -70,7 +84,6 @@
         (self changeToPage:(- @currentPageIndex 1))
         (@pageSlider setIntValue:@currentPageIndex)))
 
-
 (class MyDocument 
      
      (- (id)init is
@@ -98,18 +111,11 @@
         (if @packerView (self updateUI))
         YES))
 
-
-
-(global NSDragOperationCopy 1)
-(global NSPDFPboardType "Apple PDF pasteboard type")
-(global NSDragPboard "Apple CFPasteboard drag")
-
 (function PointInRect (point rect)
-     (and
-         (>= (point first) (rect first))
-         (>= (point second) (rect second))
-         (<= (point first) (+ (rect first) (rect third)))
-         (<= (point second) (+ (rect second) (rect fourth)))))
+     (and (>= (point first) (rect first))
+          (>= (point second) (rect second))
+          (<= (point first) (+ (rect first) (rect third)))
+          (<= (point second) (+ (rect second) (rect fourth)))))
 
 (function distanceSquaredBetweenPoints (p1 p2)
      (set deltax (- (p1 first) (p2 first)))
@@ -123,10 +129,10 @@
         (NSLog "(DraggingSourcePDFView +initialize)")
         (set $dragImage (NSImage imageNamed:"Generic")))
      
-     (- (id)hitTest:(NSPoint) aPoint is
+     (- (id) hitTest:(NSPoint) aPoint is
         (if (PointInRect aPoint (self frame)) 
             (then self)
-            (else nil)))
+            (else NULL))) ;; in the most hard-won conclusion of this project, this should be NULL and not nil.
      
      (- (BOOL) shouldDelayWindowOrderingForEvent:(id) theEvent is YES)
      
@@ -236,8 +242,7 @@
         (self replacePageInfoAt:j withPageInfo:pij))
      
      (- (BOOL)pageIsFilled:(int) i is
-        (if (@pageInfos objectAtIndex:i) (then 1) (else 0))
-        )  
+        (if (@pageInfos objectAtIndex:i) (then 1) (else 0)))  
      
      (- (id) textAttributes is
         (NSDictionary dictionaryWithObject:((PreferenceController sharedPreferenceController) textFont)
@@ -298,7 +303,6 @@
                    forPage:(+ i j)))
         (+ i j)))
 
-
 (class PageInfo is NSObject 
      (ivar (id) imageRep (int) pageOfRep)
      
@@ -333,8 +337,7 @@
 (function insetRect (rect x y)
      (list (+ (rect first) x) (+ (rect second) y) (- (rect third) x x) (- (rect fourth) y y)))
 
-(function isLeftSide (pageNum)
-     (or (eq pageNum 0) (> pageNum 4)))
+(function isLeftSide (pageNum) (or (eq pageNum 0) (> pageNum 4)))
 
 (function minX (rect) 
      (set x1 (rect first))
@@ -356,28 +359,12 @@
      (set y2 (+ (rect second) (rect fourth)))
      (if (> y1 y2) (then y1) (else y2)))
 
-(function HalfX (r) 
-     (+ (r first) (* 0.5 (r third))))
-
-(function QuarterY (r) 
-     (+ (r second) (* 0.25 (r fourth))))
-
-(function HalfY (r) 
-     (+ (r second) (* 0.5 (r fourth))))
-
-(function ThreeQuarterY (r) 
-     (+ (r second) (* 0.75 (r fourth))))
+(function HalfX (r) (+ (r first) (* 0.5 (r third))))
+(function QuarterY (r) (+ (r second) (* 0.25 (r fourth))))
+(function HalfY (r) (+ (r second) (* 0.5 (r fourth))))
+(function ThreeQuarterY (r) (+ (r second) (* 0.75 (r fourth))))
 
 (global BUTTON_MARGIN 4.0)
-
-(set NSRectClip (NuBridgedFunction functionWithName:"NSRectClip" signature:"v{_NSRect}"))
-(set NSIntersectionRect (NuBridgedFunction functionWithName:"NSIntersectionRect" signature:"{_NSRect}{_NSRect}{_NSRect}"))
-(set NSPointInRect (NuBridgedFunction functionWithName:"NSPointInRect" signature:"i{_NSPoint}{_NSRect}"))
-(set NSFilenamesPboardType "NSFilenamesPboardType")
-(set NSIntersectsRect (NuBridgedFunction functionWithName:"NSIntersectsRect" signature:"i{_NSRect}{_NSRect}"))
-(set NSInsetRect (NuBridgedFunction functionWithName:"NSInsetRect" signature:"{_NSRect}{_NSRect}ff"))
-
-(set $numberAttributes nil) 
 
 (class PackerView
      (ivar (id) packModel
@@ -388,11 +375,13 @@
            (int) dropPage
            (int) dragStart)
      
+     (set numberAttributes nil) ;; pseudo-class variable
+     
      (+ (void) initialize is
         (NSLog "(Packerview +initialize)")
-        (set $numberAttributes ((NSMutableDictionary alloc) init))
-        ($numberAttributes setObject:(NSFont fontWithName:"Helvetica" size:40.0) forKey:NSFontAttributeName)
-        ($numberAttributes setObject:(NSColor blueColor) forKey:NSForegroundColorAttributeName))      
+        (set numberAttributes ((NSMutableDictionary alloc) init))
+        (numberAttributes setObject:(NSFont fontWithName:"Helvetica" size:40.0) forKey:NSFontAttributeName)
+        (numberAttributes setObject:(NSColor blueColor) forKey:NSForegroundColorAttributeName))      
      
      (- (id) initWithFrame:(NSRect) frameRect is
         (super initWithFrame:frameRect)       
@@ -409,11 +398,6 @@
         (b setCell:((RoundCloseButtonCell alloc) init))
         (self addSubview:b)
         self)
-     
-     (- (void)nodealloc is
-        (NSLog "[PackerView dealloc]")
-        ((NSNotificationCenter defaultCenter) removeObserver:self)
-        (super dealloc))
      
      (- (void) correctWindowForChangeFromSize:(NSSize) oldSize toSize:(NSSize) newSize is
         (set oldFrame ((self window) frame))
@@ -473,7 +457,6 @@
         (set midH (HalfY bounds))
         (set upperH (ThreeQuarterY bounds))
         (set midV (HalfX bounds))
-        
         
         (set @foldLines (NSBezierPath bezierPath))
         
@@ -675,9 +658,7 @@
      (- acceptsFirstMouse:theEvent is YES)
      
      (- (void) placeButtons is
-        ;; copy the array before enumerating... 
-        ;; I don't understand why this is necessary;
-        ;; the each: method uses an enumerator.
+        ;; copy the array before enumerating to be safe
         ((NSArray arrayWithArray:(self subviews)) each:
          (do (subview)
              (subview removeFromSuperviewWithoutNeedingDisplay)))
@@ -701,7 +682,7 @@
      
      (- (void) drawNumber:(int) x centeredInRect:(NSRect) r is
         (set str (x stringValue))
-        (set attString ((NSAttributedString alloc) initWithString:str attributes:$numberAttributes))
+        (set attString ((NSAttributedString alloc) initWithString:str attributes:numberAttributes))
         (set drawingRect (list (+ (r first) (* 0.5 (- (r third) ((attString size) first))))
                                (+ (r second) (* 0.5 (- (r fourth) ((attString size) second))))
                                ((attString size) first)
@@ -782,18 +763,17 @@
 (global PaperSizeKey "PaperSize")
 (global FontFamilyKey "FontFamily")
 (global FontSizeKey "FontSize")
-
 (global LETTER_PAPER_ID 0)
 (global A4_PAPER_ID 1)
-
-(set $sharedPreferenceController nil)
 
 (class PreferenceController is NSWindowController
      (ivar (id) paperPopUp (id) textFontField (id) textFont)
      
+     (set sharedPreferenceController nil)
+     
      (- (id)init is
         (super initWithWindowNibName:"PreferenceController")
-        (set $sharedPreferenceController self)
+        (set sharedPreferenceController self)
         (set defaults (NSUserDefaults standardUserDefaults))
         (set fontFamily (defaults stringForKey:FontFamilyKey))
         (set fontSize (defaults floatForKey:FontSizeKey))
@@ -814,9 +794,9 @@
      
      (+ (id)sharedPreferenceController is
         
-        (unless $sharedPreferenceController
+        (unless sharedPreferenceController
                 ((PreferenceController alloc) init))	   
-        $sharedPreferenceController)
+        sharedPreferenceController)
      
      (- (int)paperSizeID is
         ((NSUserDefaults standardUserDefaults) integerForKey:PaperSizeKey))
@@ -870,7 +850,6 @@
         (set fp (NSFontPanel sharedFontPanel))
         (fp makeKeyAndOrderFront:nil)))
 
-(global NSSquareLineCapStyle 2)
 (class RoundCloseButtonCell is NSButtonCell 
      (- (void)drawWithFrame:(NSRect)cellFrame inView:(id)controlView is        
         (if (NSGraphicsContext currentContextDrawingToScreen) 
@@ -892,4 +871,3 @@
             ((NSColor whiteColor) set)
             (p stroke))))
 
-(puts "ok")

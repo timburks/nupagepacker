@@ -44,13 +44,6 @@
 (set @cflags "-g -O3 -DMACOSX ")
 (set @mflags "-fobjc-exceptions")
 
-(set notldflags
-     ((list
-           ((@frameworks map: (do (framework) " -framework #{framework}")) join)
-           ((@libs map: (do (lib) " -l#{lib}")) join)
-           ((@lib_dirs map: (do (libdir) " -L#{libdir}")) join))
-      join))
-
 (compilation-tasks)
 (application-tasks)
 

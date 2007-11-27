@@ -1,10 +1,19 @@
 #import <Cocoa/Cocoa.h>
 
-@interface PackerView : NSView {
+@interface PackerView : NSView
+{
 }
+
 @end
 
 @implementation PackerView
+
+- (void)dealloc
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [super dealloc];
+}
+
 - (BOOL)knowsPageRange:(NSRange *)rptr
 {
     // As a sort of odd side-effect,  I'm also informing the view

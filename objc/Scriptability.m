@@ -1,3 +1,7 @@
+
+// scripting is left as an exercise for someone who does AppleScript.
+
+
 /*
  Copyright (c) 2007, Big Nerd Ranch, Inc.
  
