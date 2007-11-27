@@ -18,11 +18,11 @@
                         "CFBundleTypeName" "DocumentType"
                         "CFBundleTypeRole" "Editor"
                         "NSDocumentClass" "MyDocument"))
-           "CFBundleExecutable" "PagePacker"
+           "CFBundleExecutable" "NuPagePacker"
            "CFBundleHelpBookFolder" "PagePackerHelp"
            "CFBundleHelpBookName" "PagePacker Help"
            "CFBundleIconFile" "PPApp"
-           "CFBundleIdentifier" "nu.programming.PagePacker"
+           "CFBundleIdentifier" "nu.programming.NuPagePacker"
            "CFBundleInfoDictionaryVersion" "6.0"
            "CFBundleName" "PagePacker"
            "CFBundlePackageType" "APPL"
@@ -34,8 +34,8 @@
            "OSAScriptingDefinition" "PagePacker.sdef"))
 
 ;; application description
-(set @application "PagePacker")
-(set @application_identifier   "nu.programming.pagepacker")
+(set @application "NuPagePacker")
+(set @application_identifier   "nu.programming.nupagepacker")
 (set @application_icon_file "PPApp.icns")
 (set @application_help_folder "PagePackerHelp")
 

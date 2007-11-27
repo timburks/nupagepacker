@@ -29,8 +29,10 @@
         (@pdfView setDocument:pdfDoc)
         (@pdfView setDisplayMode:kPDFDisplaySinglePage)
         (set w (@pdfView window))
+(NSLog "window #{w}, self #{self}")
         (w setBecomesKeyOnlyIfNeeded:YES)
-        (w setNextResponder:self))
+        (w setNextResponder:self)
+)
      
      (- (void)changeToPage:(int)i is
         (unless (eq @currentPageIndex i) 
@@ -69,8 +71,7 @@
         (@pageSlider setIntValue:@currentPageIndex)))
 
 
-(class MyDocument is NSDocument
-     (ivar (id) packModel (id) packerView)
+(class MyDocument 
      
      (- (id)init is
         (super init)
@@ -95,10 +96,9 @@
         (set @packModel (NSKeyedUnarchiver unarchiveObjectWithData:data))
         (@packModel setUndoManager:(self undoManager))
         (if @packerView (self updateUI))
-        YES)
-     
-     (- (id)printOperationWithSettings:(id)printSettings error:(id)outError is ;; last type should be "NSError **"
-        (NSPrintOperation printOperationWithView:packerView printInfo:(self printInfo))))
+        YES))
+
+
 
 (global NSDragOperationCopy 1)
 (global NSPDFPboardType "Apple PDF pasteboard type")
@@ -191,8 +191,7 @@
      (- (void) replacePageInfoAt:(int) i withPageInfo:(id) pi is
         (set oldInfo (@pageInfos objectAtIndex:i))
         (unless (eq pi oldInfo)
-                ;; invocation-based undo is broken
-                ;((@undoManager prepareWithInvocationTarget:self) replacePageInfoAt:i withPageInfo:oldInfo)
+                ((@undoManager prepareWithInvocationTarget:self) replacePageInfoAt:i withPageInfo:oldInfo)
                 (@pageInfos replaceObjectAtIndex:i withObject:pi)
                 ((NSNotificationCenter defaultCenter) postNotificationName:"PackModelChangedNotification" object:self userInfo:NULL)))
      
@@ -380,7 +379,7 @@
 
 (set $numberAttributes nil) 
 
-(class PackerView is NSView 
+(class PackerView
      (ivar (id) packModel
            (id) foldLines
            (id) cutLine
@@ -477,7 +476,6 @@
         
         
         (set @foldLines (NSBezierPath bezierPath))
-        ;(set $foldLines @foldLines) ;; there is a memory problem.  This keeps @foldlines from being released.
         
         (@foldLines setLineWidth:1.0)
         
@@ -497,16 +495,7 @@
         (@foldLines moveToPoint:(list midV lowerH))
         (@foldLines lineToPoint:(list midV bottom))
         
-        ;float dashes[2] = {7.0, 3.0};
-        (set @cutLine (NSBezierPath bezierPath))
-        (set $cutLine @cutLine) ;; there is a memory problem.  This keeps @cutLine from being released.
-        ;[cutLine setLineDash:dashes ;; how are we going to do this?
-        ;               count:2
-        ;               phase:0];
-        (@cutLine moveToPoint:(list midV upperH))
-        (@cutLine lineToPoint:(list midV lowerH))
-        (@cutLine setLineWidth:1.0))     
-     
+        (set @cutLine (self cutlineFromPoint:(list midV upperH) toPoint:(list midV lowerH))))
      
      (- (void)drawImageRep:(id)rep inRect:(NSRect)rect isLeft:(BOOL)isLeft is
         (set imageSize (rep size))        
@@ -677,30 +666,11 @@
      
      ;;;; Pagination
      
-     (if 0 ;; this function cannot be defined in Nu
-         (- (BOOL)knowsPageRange:(NSRange *)rptr
-            ;; As a sort of odd side-effect,  I'm also informing the view
-            ;; of how much of the page the printer can actually draw.
-            ;; I waited until now so that I could use the printer that the
-            ;; user actually selected.
-            (set op (NSPrintOperation currentOperation))
-            (set pi (op printInfo))
-            (if pi (self setImageablePageRect:(pi imageablePageBounds)))
-            
-            ;; It is a one-page document
-            ;rptr->location = 1;
-            ;rptr->length = 1;
-            YES))
-     
-     
      (- (NSRect) rectForPage:(int) i is (self bounds))
      
      ;;;; For Debugging Purposes
      
      (- (id) description is "<PackerView: #{(@packModel description)}>")
-     
-     
-     
      
      (- acceptsFirstMouse:theEvent is YES)
      
@@ -775,7 +745,7 @@
         ; Draw the cutting line
         ((NSColor blackColor) set)
         (@cutLine stroke)
-
+        
         ; If drawing to screen, draw imageable Rect
         (if (isScreen)  
             (if @showsImageableRect 
@@ -790,6 +760,7 @@
                                         alpha:0.3))
                 (dropColor set)
                 (NSBezierPath fillRect:(self fullRectForPage:@dropPage))))))
+
 
 (class TextDisplayView is NSView
      (ivar (id) attString (NSSize) pageSize)
@@ -806,8 +777,6 @@
      (- (void)drawRect:(NSRect)rect is
         (set bounds (NSInsetRect (self bounds) 3 3))
         (@attString drawInRect:bounds)))
-
-
 
 (global PaperSizeChangedNotification "PaperSizeChangedNotification")
 (global PaperSizeKey "PaperSize")
