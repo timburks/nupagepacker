@@ -3,6 +3,7 @@
 ;;
 ;; @copyright Copyright (c) 2007 Tim Burks, Neon Design Technology, Inc.
 
+;; these declarations would be unnecessary if Nu is enhanced to read the Apple BridgeSupport files.
 (global kPDFDisplaySinglePage 0)
 (global NSDragOperationCopy 1)
 (global NSPDFPboardType "Apple PDF pasteboard type")
@@ -126,7 +127,6 @@
      (ivar (id) mouseDownEvent)
      
      (+ (void) initialize is
-        (NSLog "(DraggingSourcePDFView +initialize)")
         (set $dragImage (NSImage imageNamed:"Generic")))
      
      (- (id) hitTest:(NSPoint) aPoint is
@@ -339,22 +339,22 @@
 
 (function isLeftSide (pageNum) (or (eq pageNum 0) (> pageNum 4)))
 
-(function minX (rect) 
+(function NSMinX (rect) 
      (set x1 (rect first))
      (set x2 (+ (rect first) (rect third)))
      (if (< x1 x2) (then x1) (else x2)))
 
-(function maxX (rect) 
+(function NSMaxX (rect) 
      (set x1 (rect first))
      (set x2 (+ (rect first) (rect third)))
      (if (> x1 x2) (then x1) (else x2)))
 
-(function minY (rect) 
+(function NSMinY (rect) 
      (set y1 (rect second))
      (set y2 (+ (rect second) (rect fourth)))
      (if (< y1 y2) (then y1) (else y2)))
 
-(function maxY (rect) 
+(function NSMaxY (rect) 
      (set y1 (rect second))
      (set y2 (+ (rect second) (rect fourth)))
      (if (> y1 y2) (then y1) (else y2)))
@@ -378,7 +378,6 @@
      (set numberAttributes nil) ;; pseudo-class variable
      
      (+ (void) initialize is
-        (NSLog "(Packerview +initialize)")
         (set numberAttributes ((NSMutableDictionary alloc) init))
         (numberAttributes setObject:(NSFont fontWithName:"Helvetica" size:40.0) forKey:NSFontAttributeName)
         (numberAttributes setObject:(NSColor blueColor) forKey:NSForegroundColorAttributeName))      
@@ -449,10 +448,10 @@
      
      (- (void) prepareBezierPaths is
         (set bounds (self bounds))
-        (set left (minX bounds))
-        (set right (maxX bounds))
-        (set top (maxY bounds))
-        (set bottom (minY bounds))
+        (set left (NSMinX bounds))
+        (set right (NSMaxX bounds))
+        (set top (NSMaxY bounds))
+        (set bottom (NSMinY bounds))
         (set lowerH (QuarterY bounds))
         (set midH (HalfY bounds))
         (set upperH (ThreeQuarterY bounds))
@@ -536,7 +535,7 @@
      (- (NSRect) fullRectForPage:(int) pageNum is        
         (set bounds (self bounds))
         (if (isLeftSide pageNum) 
-            (then (set x (minX bounds)))
+            (then (set x (NSMinX bounds)))
             (else (set x (HalfX bounds))))        
         (case pageNum
               (0 (set y (ThreeQuarterY bounds)))
@@ -545,7 +544,7 @@
               (2 (set y (HalfY bounds)))
               (6 (set y (QuarterY bounds)))
               (3 (set y (QuarterY bounds)))
-              (else (set y (minY bounds))))        
+              (else (set y (NSMinY bounds))))        
         (list x y (* 0.5 (bounds third)) (* 0.25 (bounds fourth))))
      
      (- (NSRect) imageableRectForPage:(int) pageNum is
@@ -667,8 +666,8 @@
                  (if (@packModel pageIsFilled:i)                      
                      (set fullRect (self fullRectForPage:i))
                      (set buttonRect (list
-                                          (- (maxX fullRect) (+ 30 BUTTON_MARGIN))
-                                          (+ (minY fullRect) BUTTON_MARGIN)
+                                          (- (NSMaxX fullRect) (+ 30 BUTTON_MARGIN))
+                                          (+ (NSMinY fullRect) BUTTON_MARGIN)
                                           30 25))
                      (set button ((NSButton alloc) initWithFrame:buttonRect))
                      (button setCell:((RoundCloseButtonCell alloc) init))
@@ -781,7 +780,6 @@
         self)
      
      (+ (void)initialize is
-        (NSLog "(PreferencesController +initialize)")
         (set factoryDefaults ((NSMutableDictionary alloc) init))
         (factoryDefaults setObject:(NSNumber numberWithInt:0)
              forKey:PaperSizeKey)
