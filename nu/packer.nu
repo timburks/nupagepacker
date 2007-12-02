@@ -132,7 +132,7 @@
      (- (id) hitTest:(NSPoint) aPoint is
         (if (PointInRect aPoint (self frame)) 
             (then self)
-            (else NULL))) ;; in the most hard-won conclusion of this project, this should be NULL and not nil.
+            (else nil))) ;; in the most hard-won conclusion of this project, this should be NULL and not nil.
      
      (- (BOOL) shouldDelayWindowOrderingForEvent:(id) theEvent is YES)
      
@@ -140,7 +140,7 @@
      
      (- (int) draggingSourceOperationMaskForLocal:(BOOL) flag is NSDragOperationCopy)
      
-     (- (id) menuForEvent:(id) e is NULL)
+     (- (id) menuForEvent:(id) e is nil)
      
      (- (void) mouseDown:(id) e is
         (NSApp preventWindowOrdering)
@@ -152,7 +152,7 @@
         
         ;; Is this a significant distance from the mouseDown?
         (unless (< (distanceSquaredBetweenPoints start current) 52.0)              
-                (set dragStart (self convertPoint:start fromView:NULL))
+                (set dragStart (self convertPoint:start fromView:nil))
                 (set imageSize ($dragImage size))
                 (set dragStart (list (- (dragStart first) (/ (imageSize first) 3.0))
                                      (- (dragStart second) (/ (imageSize second) 3.0))))
@@ -199,7 +199,7 @@
         (unless (eq pi oldInfo)
                 ((@undoManager prepareWithInvocationTarget:self) replacePageInfoAt:i withPageInfo:oldInfo)
                 (@pageInfos replaceObjectAtIndex:i withObject:pi)
-                ((NSNotificationCenter defaultCenter) postNotificationName:"PackModelChangedNotification" object:self userInfo:NULL)))
+                ((NSNotificationCenter defaultCenter) postNotificationName:"PackModelChangedNotification" object:self userInfo:nil)))
      
      (- (void) setImageRep:(id) r pageOfRep:(int) repPage forPage:(int) viewPage is
         (set pi ((PageInfo alloc) init))
@@ -266,7 +266,7 @@
             (then
                  (set str (NSString stringWithContentsOfFile:currentPath
                                encoding:NSUTF8StringEncoding
-                               error:NULL))
+                               error:nil))
                  (if str
                      (then
                           (set atts (self textAttributes))              
@@ -609,7 +609,7 @@
                       page)))
      
      (- (int) pageForPointInWindow:(NSPoint) p is
-        (set x (self convertPoint:p fromView:NULL))
+        (set x (self convertPoint:p fromView:nil))
         (self pageForPoint:x))
      
      (- (int) draggingEntered:(id) sender is
