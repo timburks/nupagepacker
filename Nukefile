@@ -24,7 +24,7 @@
            "CFBundleIconFile" "NuPPApp"
            "CFBundleIdentifier" "nu.programming.NuPagePacker"
            "CFBundleInfoDictionaryVersion" "6.0"
-           "CFBundleName" "PagePacker"
+           "CFBundleName" "NuPagePacker"
            "CFBundlePackageType" "APPL"
            "CFBundleSignature" "????"
            "CFBundleVersion" "1.2"

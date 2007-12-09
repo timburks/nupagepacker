@@ -8,7 +8,7 @@
 (load "console")	;; interactive console
 (load "packer")		;; application code
 
-;; unfortunately, these aren't called automatically
+;; unfortunately, these initialize methods aren't called automatically, so we call them here.
 (PackerView initialize) 
 (PreferenceController initialize)
 (DraggingSourcePDFView initialize)
@@ -20,6 +20,8 @@
           (set $console ((NuConsoleWindowController alloc) init))
           (if SHOW_CONSOLE_AT_STARTUP ($console toggleConsole:self))
           ((CatalogController sharedCatalogController) showWindow:nil)))
+
+(load "scripting")  ;; scripting support, must be loaded after AppControler is defined
 
 (set NSApp (NSApplication sharedApplication))
 

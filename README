@@ -1,0 +1,23 @@
+This is a translation of Aaron Hillegass' PagePacker example from Objective-C to Nu.
+
+It is released under the BSD license, the same license as the original PagePacker.
+
+You'll notice that this project contains many fewer files than the original.
+This is partly because Nu code is more concise.  But it also reflects my view
+that dividing code across multiple files makes it less readable, much like
+organizing a novel with each character's dialogue in a separate chapter.
+
+All but four methods were converted to Nu. Of these four, two or three may
+be representable in Nu with future improvements.
+
+I've never used AppleScript (and don't plan to), so the scripting support in
+scripting.nu is untested. I've attempted to test everything else, but there
+may still be problems that I haven't found.
+
+Please consider this a work in progress and an attempted proof of concept.
+Its goal is to demonstrate that Nu can be used to develop significant Cocoa
+applications.  
+
+Tim Burks
+Los Altos, CA
+December 2007
