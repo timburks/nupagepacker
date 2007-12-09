@@ -14,14 +14,14 @@
      (dict "CFBundleDevelopmentRegion" "English"
            "CFBundleDocumentTypes"  
            (array (dict "CFBundleTypeExtensions" (array "pp")
-                        "CFBundleTypeIconFile" "PPApp.icns"
+                        "CFBundleTypeIconFile" "NuPPApp.icns"
                         "CFBundleTypeName" "DocumentType"
                         "CFBundleTypeRole" "Editor"
                         "NSDocumentClass" "MyDocument"))
            "CFBundleExecutable" "NuPagePacker"
            "CFBundleHelpBookFolder" "PagePackerHelp"
            "CFBundleHelpBookName" "PagePacker Help"
-           "CFBundleIconFile" "PPApp"
+           "CFBundleIconFile" "NuPPApp"
            "CFBundleIdentifier" "nu.programming.NuPagePacker"
            "CFBundleInfoDictionaryVersion" "6.0"
            "CFBundleName" "PagePacker"
@@ -36,7 +36,7 @@
 ;; application description
 (set @application "NuPagePacker")
 (set @application_identifier   "nu.programming.nupagepacker")
-(set @application_icon_file "PPApp.icns")
+(set @application_icon_file "NuPPApp.icns")
 (set @application_help_folder "PagePackerHelp")
 
 ;; build configuration
