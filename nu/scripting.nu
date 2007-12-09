@@ -2,6 +2,8 @@
 ;; @discussion PagePacker scripting support in Nu.
 ;;
 ;; @copyright Copyright (c) 2007 Tim Burks, Neon Design Technology, Inc.
+;; Substantially derived from original Objective-C source code by Aaron Hillegass.
+;; See objc/PagePacker.m for the copyright notice for the original code.
 
 (class NSObject
      

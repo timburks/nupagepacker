@@ -1,4 +1,4 @@
-;; Nukefile for PagePacker
+;; Nukefile for NuPagePacker
 
 ;; source files
 (set @c_files     (filelist "^objc/.*.c$"))
@@ -10,6 +10,13 @@
 (@resources << "resources/diyp3h_core_1up.pdf")
 (@resources << "resources/PagePacker.sdef")
 
+;; application description
+(set @application "NuPagePacker")
+(set @application_identifier   "nu.programming.NuPagePacker")
+(set @application_icon_file "NuPPApp.icns")
+(set @application_help_folder "PagePackerHelp")
+
+;; specify the entire Info.plist here:
 (set @info
      (dict "CFBundleDevelopmentRegion" "English"
            "CFBundleDocumentTypes"  
@@ -33,19 +40,13 @@
            "NSPrincipalClass" "NSApplication"
            "OSAScriptingDefinition" "PagePacker.sdef"))
 
-;; application description
-(set @application "NuPagePacker")
-(set @application_identifier   "nu.programming.nupagepacker")
-(set @application_icon_file "NuPPApp.icns")
-(set @application_help_folder "PagePackerHelp")
-
-;; build configuration
-(set @cc "gcc")
-(set @cflags "-g -O3 -DMACOSX ")
-(set @mflags "-fobjc-exceptions")
-
+;; build tasks
 (compilation-tasks)
 (application-tasks)
-
 (task "default" => "application")
 
+;; this copies the Nu.framework into the application so that it can be run on systems without Nu.
+(task "finalize" => "application" is
+      (SH "mkdir -p '#{@application_dir}/Contents/Frameworks'")
+      (SH "ditto /Library/Frameworks/Nu.framework '#{@application_dir}/Contents/Frameworks/Nu.framework'")
+      (SH "install_name_tool -change 'Nu.framework/Versions/A/Nu' '@executable_path/../Frameworks/Nu.framework/Versions/A/Nu'  '#{@application_dir}/Contents/MacOS/#{@application}'"))

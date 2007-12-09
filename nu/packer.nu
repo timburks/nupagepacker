@@ -2,27 +2,23 @@
 ;; @discussion PagePacker in Nu.
 ;;
 ;; @copyright Copyright (c) 2007 Tim Burks, Neon Design Technology, Inc.
+;; Substantially derived from original Objective-C source code by Aaron Hillegass.
+;; See objc/PagePacker.m for the copyright notice for the original code.
 
-;; these declarations would be unnecessary if Nu is enhanced to read the Apple BridgeSupport files.
-(global kPDFDisplaySinglePage 0)
-(global NSDragOperationCopy 1)
-(global NSPDFPboardType "Apple PDF pasteboard type")
-(global NSDragPboard "Apple CFPasteboard drag")
-(global NSRectClip (NuBridgedFunction functionWithName:"NSRectClip" signature:"v{_NSRect}"))
-(global NSIntersectionRect (NuBridgedFunction functionWithName:"NSIntersectionRect" signature:"{_NSRect}{_NSRect}{_NSRect}"))
-(global NSPointInRect (NuBridgedFunction functionWithName:"NSPointInRect" signature:"i{_NSPoint}{_NSRect}"))
-(global NSFilenamesPboardType "NSFilenamesPboardType")
-(global NSIntersectsRect (NuBridgedFunction functionWithName:"NSIntersectsRect" signature:"i{_NSRect}{_NSRect}"))
-(global NSInsetRect (NuBridgedFunction functionWithName:"NSInsetRect" signature:"{_NSRect}{_NSRect}ff"))
-(global NSSquareLineCapStyle 2)
+(global BLOCK_COUNT 8) ;; We display 8 pages in a PagePacker document.  There is no easy way to change this.
 
+;; @class CatalogController
+;; @discussion This class controls the display of the PDF source document.
+;; Pages can be dragged from this document into the PagePacker document view. 
 (class CatalogController is NSWindowController
      (ivar (id) pdfView
            (id) pageSlider
            (id) pageField
            (int) currentPageIndex)
      
-     (set sharedCatalogController nil) ;; Nu closures make this a class variable
+     (set sharedCatalogController nil) ;; Since the assignment is made inside the class declaration, Nu closures make this a class variable.
+     
+     (+ sharedCatalogController is sharedCatalogController)
      
      (- init is
         (super initWithWindowNibName:"CatalogController")
@@ -30,8 +26,6 @@
                 (set sharedCatalogController self))
         (set @currentPageIndex 0)
         self)
-     
-     (+ sharedCatalogController is sharedCatalogController)
      
      (- windowDidLoad is
         (set path ((NSBundle mainBundle) pathForResource:"diyp3h_core_1up" ofType:@"pdf"))
@@ -85,6 +79,8 @@
         (self changeToPage:(- @currentPageIndex 1))
         (@pageSlider setIntValue:@currentPageIndex)))
 
+;; @class MyDocument
+;; @discussion This is the main PagePacker document.
 (class MyDocument 
      
      (- (id)init is
@@ -112,17 +108,8 @@
         (if @packerView (self updateUI))
         YES))
 
-(function PointInRect (point rect)
-     (and (>= (point first) (rect first))
-          (>= (point second) (rect second))
-          (<= (point first) (+ (rect first) (rect third)))
-          (<= (point second) (+ (rect second) (rect fourth)))))
-
-(function distanceSquaredBetweenPoints (p1 p2)
-     (set deltax (- (p1 first) (p2 first)))
-     (set deltay (- (p1 second) (p2 second)))
-     (+ (* deltax deltax) (* deltay deltay)))
-
+;; @class DragingSourcePDFView
+;; @discussion This class controls the view of the source document.
 (class DraggingSourcePDFView is PDFView 
      (ivar (id) mouseDownEvent)
      
@@ -132,7 +119,7 @@
      (- (id) hitTest:(NSPoint) aPoint is
         (if (PointInRect aPoint (self frame)) 
             (then self)
-            (else nil))) ;; in the most hard-won conclusion of this project, this should be NULL and not nil.
+            (else nil)))
      
      (- (BOOL) shouldDelayWindowOrderingForEvent:(id) theEvent is YES)
      
@@ -173,12 +160,8 @@
      (- (void) mouseUp:(id) e is
         (set @mouseDownEvent nil)))
 
-(function pdfFromAttributedStringOfSize (attStr sz)
-     (set v ((TextDisplayView alloc) initWithPageSize:sz attributedString:attStr))
-     (v dataWithPDFInsideRect:(v bounds)))
-
-(set BLOCK_COUNT 8)
-
+;; @class PackModel
+;; @discussion This class describes the PagePacker document.
 (class PackModel is NSObject
      (ivar (id) pageInfos (id) undoManager)
      
@@ -303,6 +286,8 @@
                    forPage:(+ i j)))
         (+ i j)))
 
+;; @class PageInfo
+;; @discussion This class describes an individual page in a PagePacker document.
 (class PageInfo is NSObject 
      (ivar (id) imageRep (int) pageOfRep)
      
@@ -334,38 +319,31 @@
      (- (id)description is
         "<PageInfo: #{(@imageRep description)}, #{@pageOfRep}>"))
 
-(function insetRect (rect x y)
-     (list (+ (rect first) x) (+ (rect second) y) (- (rect third) x x) (- (rect fourth) y y)))
+;; @class RoundCloseButtonCell
+;; @discussion This class provides a custom button cell for use in the PackerView display.
+(class RoundCloseButtonCell is NSButtonCell 
+     (- (void)drawWithFrame:(NSRect)cellFrame inView:(id)controlView is        
+        (if (NSGraphicsContext currentContextDrawingToScreen) 
+            (if (self isHighlighted) 
+                (then ((NSColor orangeColor) set))
+                (else ((NSColor blueColor) set)))
+            (NSBezierPath fillRect:cellFrame)
+            (NSBezierPath setDefaultLineWidth:3)
+            ((NSColor whiteColor) set)
+            (NSBezierPath strokeRect:cellFrame)
+            (set p ((NSBezierPath alloc) init))
+            (p setLineWidth:3.0)
+            (p setLineCapStyle:NSSquareLineCapStyle)
+            (set xRect (NSInsetRect cellFrame 9 7))
+            (p moveToPoint:(list (xRect first) (xRect second)))
+            (p lineToPoint:(list (+ (xRect first) (xRect third)) (+ (xRect second) (xRect fourth))))
+            (p moveToPoint:(list (xRect first)  (+ (xRect second) (xRect fourth))))
+            (p lineToPoint:(list (+ (xRect first) (xRect third)) (xRect second)))
+            ((NSColor whiteColor) set)
+            (p stroke))))
 
-(function isLeftSide (pageNum) (or (eq pageNum 0) (> pageNum 4)))
-
-(function NSMinX (rect) 
-     (set x1 (rect first))
-     (set x2 (+ (rect first) (rect third)))
-     (if (< x1 x2) (then x1) (else x2)))
-
-(function NSMaxX (rect) 
-     (set x1 (rect first))
-     (set x2 (+ (rect first) (rect third)))
-     (if (> x1 x2) (then x1) (else x2)))
-
-(function NSMinY (rect) 
-     (set y1 (rect second))
-     (set y2 (+ (rect second) (rect fourth)))
-     (if (< y1 y2) (then y1) (else y2)))
-
-(function NSMaxY (rect) 
-     (set y1 (rect second))
-     (set y2 (+ (rect second) (rect fourth)))
-     (if (> y1 y2) (then y1) (else y2)))
-
-(function HalfX (r) (+ (r first) (* 0.5 (r third))))
-(function QuarterY (r) (+ (r second) (* 0.25 (r fourth))))
-(function HalfY (r) (+ (r second) (* 0.5 (r fourth))))
-(function ThreeQuarterY (r) (+ (r second) (* 0.75 (r fourth))))
-
-(global BUTTON_MARGIN 4.0)
-
+;; @class PackerView
+;; @discussion This class provides a view of a PagePacker document.
 (class PackerView
      (ivar (id) packModel
            (id) foldLines
@@ -375,7 +353,12 @@
            (int) dropPage
            (int) dragStart)
      
-     (set numberAttributes nil) ;; pseudo-class variable
+     (set numberAttributes nil) ;; a class variable to hold the attribute dictionary for displayed numbers.
+     (set buttonMargin 4.0)     ;; a class variable that specifies the position of our custom close buttons.
+     
+     ;; determine whether a page is on the left or right side of the PageView display.
+     ;; Because this function is defined in the class declaration, it is effectively local (private) to this class.
+     (function isLeftSide (pageNum) (or (eq pageNum 0) (> pageNum 4)))
      
      (+ (void) initialize is
         (set numberAttributes ((NSMutableDictionary alloc) init))
@@ -665,10 +648,9 @@
              (do (i)
                  (if (@packModel pageIsFilled:i)                      
                      (set fullRect (self fullRectForPage:i))
-                     (set buttonRect (list
-                                          (- (NSMaxX fullRect) (+ 30 BUTTON_MARGIN))
-                                          (+ (NSMinY fullRect) BUTTON_MARGIN)
-                                          30 25))
+                     (set buttonRect (list (- (NSMaxX fullRect) (+ 30 buttonMargin))
+                                           (+ (NSMinY fullRect) buttonMargin)
+                                           30 25))
                      (set button ((NSButton alloc) initWithFrame:buttonRect))
                      (button setCell:((RoundCloseButtonCell alloc) init))
                      (button setTag:i)
@@ -731,17 +713,13 @@
             (if @showsImageableRect 
                 ((NSColor blueColor) set)
                 (NSBezierPath setDefaultLineWidth:1.0)
-                (NSBezierPath strokeRect:@imageablePageRect))
-            
+                (NSBezierPath strokeRect:@imageablePageRect))            
             (if (>= @dropPage 0) 
-                (set dropColor (NSColor colorWithDeviceRed:0.8
-                                        green:0.5
-                                        blue:0.5
-                                        alpha:0.3))
-                (dropColor set)
+                ((NSColor colorWithDeviceRed:0.8 green:0.5 blue:0.5 alpha:0.3) set)
                 (NSBezierPath fillRect:(self fullRectForPage:@dropPage))))))
 
-
+;; @class TextDisplayView
+;; @discussion This helper class is used to generate PDF representations of strings.
 (class TextDisplayView is NSView
      (ivar (id) attString (NSSize) pageSize)
      
@@ -758,13 +736,19 @@
         (set bounds (NSInsetRect (self bounds) 3 3))
         (@attString drawInRect:bounds)))
 
+;; use the above class to generate a PDF for an attribute string.
+(function pdfFromAttributedStringOfSize (attStr sz)
+     (set v ((TextDisplayView alloc) initWithPageSize:sz attributedString:attStr))
+     (v dataWithPDFInsideRect:(v bounds)))
+
+;; some internal constants
 (global PaperSizeChangedNotification "PaperSizeChangedNotification")
 (global PaperSizeKey "PaperSize")
 (global FontFamilyKey "FontFamily")
 (global FontSizeKey "FontSize")
-(global LETTER_PAPER_ID 0)
-(global A4_PAPER_ID 1)
 
+;; @class PreferenceController
+;; @discussion This class controls the application's preference window.
 (class PreferenceController is NSWindowController
      (ivar (id) paperPopUp (id) textFontField (id) textFont)
      
@@ -780,20 +764,12 @@
         self)
      
      (+ (void)initialize is
-        (set factoryDefaults ((NSMutableDictionary alloc) init))
-        (factoryDefaults setObject:(NSNumber numberWithInt:0)
-             forKey:PaperSizeKey)
-        (factoryDefaults setObject:@"Helvetica"
-             forKey:FontFamilyKey)
-        (factoryDefaults setObject:(NSNumber numberWithFloat:8.0)
-             forKey:FontSizeKey)
-        
-        ((NSUserDefaults standardUserDefaults) registerDefaults:factoryDefaults))
+        ((NSUserDefaults standardUserDefaults) registerDefaults:(dict PaperSizeKey 0
+                                                                      FontFamilyKey "Helvetica"
+                                                                      FontSizeKey 8.0)))
      
-     (+ (id)sharedPreferenceController is
-        
-        (unless sharedPreferenceController
-                ((PreferenceController alloc) init))	   
+     (+ (id)sharedPreferenceController is       
+        (unless sharedPreferenceController ((PreferenceController alloc) init))	   
         sharedPreferenceController)
      
      (- (int)paperSizeID is
@@ -801,71 +777,38 @@
      
      (- (void)setPaperSizeID:(int)i is
         ((NSUserDefaults standardUserDefaults) setInteger:i forKey:PaperSizeKey)
-        (set userInfo (NSMutableDictionary dictionary))
-        (userInfo setObject:(NSValue valueWithSize:(self paperSize))
-             forKey:"PaperSize")
-        ((NSNotificationCenter defaultCenter) postNotificationName:PaperSizeChangedNotification
+        ((NSNotificationCenter defaultCenter) 
+         postNotificationName:PaperSizeChangedNotification
          object:self
-         userInfo:userInfo))
+         userInfo:(dict PaperSizeKey (NSValue valueWithSize:(self paperSize)))))
      
      (- (NSSize)paperSize is
-        (set i (self paperSizeID))
-        (if (eq i 0)
-            (then ;; letter
-                  '(612 792))
-            (else ;; assume it's A4
-                  '(595 842))))
+        (case (self paperSizeID)
+              (0 '(612 792))				;; LETTER
+              (else '(595 842)))) 			;; assume it's A4
      
      (- (void)windowDidLoad is
-        (set i (self paperSizeID))
-        (@paperPopUp selectItemWithTag:i)
+        (@paperPopUp selectItemWithTag:(self paperSizeID))
         (@textFontField setStringValue:(self fontDescription)))
      
      (- (void)paperChosen:(id)sender is
-        (set i (@paperPopUp selectedTag))
-        (self setPaperSizeID:i))
+        (self setPaperSizeID:(@paperPopUp selectedTag)))
      
      (- (id) textFont is @textFont)
      
      (- (void) setTextFont:(id) f is
         (set @textFont f)
-        (set ud (NSUserDefaults standardUserDefaults))
-        (ud setObject:(f familyName) forKey:FontFamilyKey)
-        (ud setFloat:(f pointSize) forKey:FontSizeKey)
+        (set userDefaults (NSUserDefaults standardUserDefaults))
+        (userDefaults setObject:(f familyName) forKey:FontFamilyKey)
+        (userDefaults setFloat:(f pointSize) forKey:FontSizeKey)
         (@textFontField setStringValue:(self fontDescription)))	
      
      (- (id) fontDescription is
-        (set f (self textFont))
-        "#{(f displayName)} - #{(f pointSize)}")
+        "#{((self textFont) displayName)} - #{((self textFont) pointSize)}")
      
      (- (void)changeFont:(id)sender is
-        (set newFont (sender convertFont:@textFont))
-        (self setTextFont:newFont))
+        (self setTextFont:(sender convertFont:@textFont)))
      
      (- (void)chooseFont:(id)sender is
-        (set fm (NSFontManager sharedFontManager))
-        (fm setSelectedFont:@textFont isMultiple:NO)
-        (set fp (NSFontPanel sharedFontPanel))
-        (fp makeKeyAndOrderFront:nil)))
-
-(class RoundCloseButtonCell is NSButtonCell 
-     (- (void)drawWithFrame:(NSRect)cellFrame inView:(id)controlView is        
-        (if (NSGraphicsContext currentContextDrawingToScreen) 
-            (if (self isHighlighted) 
-                (then ((NSColor orangeColor) set))
-                (else ((NSColor blueColor) set)))
-            (NSBezierPath fillRect:cellFrame)
-            (NSBezierPath setDefaultLineWidth:3)
-            ((NSColor whiteColor) set)
-            (NSBezierPath strokeRect:cellFrame)
-            (set p ((NSBezierPath alloc) init))
-            (p setLineWidth:3.0)
-            (p setLineCapStyle:NSSquareLineCapStyle)
-            (set xRect  (NSInsetRect cellFrame 9 7))
-            (p moveToPoint:(list (xRect first) (xRect second)))
-            (p lineToPoint:(list (+ (xRect first) (xRect third)) (+ (xRect second) (xRect fourth))))
-            (p moveToPoint:(list (xRect first)  (+ (xRect second) (xRect fourth))))
-            (p lineToPoint:(list (+ (xRect first) (xRect third)) (xRect second)))
-            ((NSColor whiteColor) set)
-            (p stroke))))
-
+        ((NSFontManager sharedFontManager) setSelectedFont:@textFont isMultiple:NO)
+        ((NSFontPanel sharedFontPanel) makeKeyAndOrderFront:nil)))
