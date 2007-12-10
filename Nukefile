@@ -10,6 +10,8 @@
 (@resources << "resources/diyp3h_core_1up.pdf")
 (@resources << "resources/PagePacker.sdef")
 
+(set @arch '("i386" "ppc"))
+
 ;; application description
 (set @application "NuPagePacker")
 (set @application_identifier   "nu.programming.NuPagePacker")
@@ -50,3 +52,10 @@
       (SH "mkdir -p '#{@application_dir}/Contents/Frameworks'")
       (SH "ditto /Library/Frameworks/Nu.framework '#{@application_dir}/Contents/Frameworks/Nu.framework'")
       (SH "install_name_tool -change 'Nu.framework/Versions/A/Nu' '@executable_path/../Frameworks/Nu.framework/Versions/A/Nu'  '#{@application_dir}/Contents/MacOS/#{@application}'"))
+
+;; Build a disk image for distributing the application.
+(task "dmg" => "finalize" is
+      (SH "rm -rf '#{@application}.dmg' dmg")
+      (SH "mkdir dmg; cp -Rp '#{@application}.app' dmg")
+      (SH "hdiutil create -srcdir dmg '#{@application}.dmg' -volname '#{@application}'")
+      (SH "rm -rf dmg"))
