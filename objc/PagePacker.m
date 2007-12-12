@@ -1,3 +1,10 @@
+// PagePacker.m
+// All that's left of the original Objective-C source for PagePacker.
+//
+// Substantially derived from original Objective-C source code by Aaron Hillegass.
+// The original copyright notice is below.
+// Changes in this version are copyright (c) 2007 Tim Burks, Neon Design Technology, Inc.
+
 /*
  Copyright (c) 2007, Big Nerd Ranch, Inc.
 
@@ -34,29 +41,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 #import <Cocoa/Cocoa.h>
 
 // The code below is what remains of Aaron's original Objective-C source.
-// All comments are mine (Tim Burks).
+// Except where otherwise noted, all comments below are mine (Tim Burks).
 
-// We leave these class and method definitions in Objective-C.
-// For various reasons, each is currently not representable in Nu.
-
-@interface MyDocument : NSDocument
-{
-    // since we use these two ivars in Objective-C, keep their declarations here.
-    // all other ivars are declared in Nu.
-    id packModel;
-    id packerView;
-}
-
-@end
-
-@implementation MyDocument
-// We can't declare a method in Nu with an argument that's an (NSError **)
-- (id) printOperationWithSettings:(id)printSettings error:(NSError **)outError
-{
-    [NSPrintOperation printOperationWithView:packerView printInfo:[self printInfo]];
-}
-
-@end
+// We leave this class declaration and these three method definitions in Objective-C.
+// For various reasons, each method is currently not representable in Nu.
 
 @interface PackerView : NSView
 {
@@ -66,6 +54,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 @end
 
 @interface PackerView (Nu)
+// declare this interface here so that our Objective-C code can call our Nu method.
 - (void) setImageablePageRect:(NSRect) r;
 @end
 
@@ -83,6 +72,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 // Nu can't declare methods with arguments that are pointers to NSRanges
 - (BOOL)knowsPageRange:(NSRange *)rptr
 {
+    // Comment from Aaron:
     // As a sort of odd side-effect,  I'm also informing the view
     // of how much of the page the printer can actually draw.
     // I waited until now so that I could use the printer that the

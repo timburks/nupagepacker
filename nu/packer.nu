@@ -81,10 +81,12 @@
 
 ;; @class MyDocument
 ;; @discussion This is the main PagePacker document.
-(class MyDocument 
+(class MyDocument is NSDocument
+     (ivar (id) packModel (id) packerView)
      
      (- (id)init is
         (super init)
+        
         (set @packModel ((PackModel alloc) init))
         (@packModel setUndoManager:(self undoManager))
         self)
@@ -106,7 +108,10 @@
         (set @packModel (NSKeyedUnarchiver unarchiveObjectWithData:data))
         (@packModel setUndoManager:(self undoManager))
         (if @packerView (self updateUI))
-        YES))
+        YES)
+     
+     (- (id) printOperationWithSettings:(id)printSettings error:(id *)errorReference is
+        (NSPrintOperation printOperationWithView:@packerView printInfo:(self printInfo))))
 
 ;; @class DragingSourcePDFView
 ;; @discussion This class controls the view of the source document.
@@ -736,10 +741,10 @@
         (set bounds (NSInsetRect (self bounds) 3 3))
         (@attString drawInRect:bounds)))
 
-;; use the above class to generate a PDF for an attribute string.
-(function pdfFromAttributedStringOfSize (attStr sz)
-     (set v ((TextDisplayView alloc) initWithPageSize:sz attributedString:attStr))
-     (v dataWithPDFInsideRect:(v bounds)))
+;; use the above class to generate a PDF for an attributed string.
+(function pdfFromAttributedStringOfSize (attributedString size)
+     (set view ((TextDisplayView alloc) initWithPageSize:size attributedString:attributedString))
+     (view dataWithPDFInsideRect:(view bounds)))
 
 ;; some internal constants
 (global PaperSizeChangedNotification "PaperSizeChangedNotification")
